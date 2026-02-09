@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -26,7 +26,8 @@ interface PriceEntry {
   recorded_at: string;
 }
 
-export default function WishlistDetailPage({ params }: { params: { id: string } }) {
+export default function WishlistDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params);
   const router = useRouter();
   const [item, setItem] = useState<WishlistItem | null>(null);
   const [priceHistory, setPriceHistory] = useState<PriceEntry[]>([]);
@@ -43,7 +44,7 @@ export default function WishlistDetailPage({ params }: { params: { id: string } 
   useEffect(() => {
     fetchItem();
     fetchPriceHistory();
-  }, [params.id]);
+  }, [id]);
 
   async function fetchItem() {
     try {
@@ -52,7 +53,7 @@ export default function WishlistDetailPage({ params }: { params: { id: string } 
         throw new Error('Failed to fetch wishlist items');
       }
       const items = await response.json();
-      const foundItem = items.find((i: WishlistItem) => i.id === Number(params.id));
+      const foundItem = items.find((i: WishlistItem) => i.id === Number(id));
       
       if (!foundItem) {
         throw new Error('Wishlist item not found');
@@ -68,7 +69,7 @@ export default function WishlistDetailPage({ params }: { params: { id: string } 
 
   async function fetchPriceHistory() {
     try {
-      const response = await fetch(`/api/wishlist/${params.id}/prices`);
+      const response = await fetch(`/api/wishlist/${id}/prices`);
       if (!response.ok) {
         throw new Error('Failed to fetch price history');
       }
@@ -90,7 +91,7 @@ export default function WishlistDetailPage({ params }: { params: { id: string } 
     }
 
     try {
-      const response = await fetch(`/api/wishlist/${params.id}/prices`, {
+      const response = await fetch(`/api/wishlist/${id}/prices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -3,8 +3,8 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-export default function DayPage({ params }: { params: { date: string } }) {
-  const { date } = params;
+export default async function DayPage({ params }: { params: Promise<{ date: string }> }) {
+  const { date } = await params;
 
   const log = db.prepare(`
     SELECT wl.*, w.brand, w.model, w.reference, w.image_url as watch_image

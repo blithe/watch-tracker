@@ -5,9 +5,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const wishlistId = params.id;
+  const { id: wishlistId } = await params;
 
   if (!wishlistId) {
     return NextResponse.json({ error: 'Wishlist ID is required' }, { status: 400 });
@@ -31,9 +31,9 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const wishlistId = params.id;
+  const { id: wishlistId } = await params;
   const { price, source, url } = await req.json();
 
   if (!wishlistId) {

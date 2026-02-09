@@ -11,10 +11,11 @@ function getFirstDayOfWeek(year: number, month: number) {
   return new Date(year, month, 1).getDay();
 }
 
-export default function CalendarPage({ searchParams }: { searchParams: { month?: string; year?: string } }) {
+export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ month?: string; year?: string }> }) {
+  const { month: monthParam, year: yearParam } = await searchParams;
   const now = new Date();
-  const year = searchParams.year ? parseInt(searchParams.year) : now.getFullYear();
-  const month = searchParams.month ? parseInt(searchParams.month) - 1 : now.getMonth();
+  const year = yearParam ? parseInt(yearParam) : now.getFullYear();
+  const month = monthParam ? parseInt(monthParam) - 1 : now.getMonth();
 
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfWeek(year, month);
