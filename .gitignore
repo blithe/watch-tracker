@@ -1,0 +1,8 @@
+node_modules/
+.next/
+watch-tracker.db
+public/uploads/*.jpg
+public/uploads/*.jpeg
+public/uploads/*.png
+public/uploads/*.heic
+!public/uploads/.gitkeep
