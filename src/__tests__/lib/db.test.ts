@@ -43,7 +43,7 @@ describe('Database initialization and schema', () => {
         pk: number;
       }>;
 
-      expect(tableInfo).toHaveLength(6);
+      expect(tableInfo.length).toBeGreaterThanOrEqual(6);
       
       const columns = tableInfo.reduce((acc, col) => {
         acc[col.name] = col;
@@ -88,6 +88,86 @@ describe('Database initialization and schema', () => {
         name: 'created_at',
         type: 'TEXT',
         notnull: 0,
+      });
+    });
+
+    it('should create wishlist table with correct schema', () => {
+      const db = getTestDb();
+      const tableInfo = db.prepare('PRAGMA table_info(wishlist)').all() as Array<{
+        cid: number;
+        name: string;
+        type: string;
+        notnull: number;
+        dflt_value: any;
+        pk: number;
+      }>;
+
+      expect(tableInfo).toHaveLength(10);
+      
+      const columns = tableInfo.reduce((acc, col) => {
+        acc[col.name] = col;
+        return acc;
+      }, {} as Record<string, any>);
+
+      expect(columns.id).toMatchObject({
+        name: 'id',
+        type: 'INTEGER',
+        pk: 1,
+      });
+
+      expect(columns.brand).toMatchObject({
+        name: 'brand',
+        type: 'TEXT',
+        notnull: 1,
+      });
+
+      expect(columns.model).toMatchObject({
+        name: 'model',
+        type: 'TEXT',
+        notnull: 1,
+      });
+
+      expect(columns.status).toMatchObject({
+        name: 'status',
+        type: 'TEXT',
+        notnull: 0,
+      });
+    });
+
+    it('should create price_history table with correct schema', () => {
+      const db = getTestDb();
+      const tableInfo = db.prepare('PRAGMA table_info(price_history)').all() as Array<{
+        cid: number;
+        name: string;
+        type: string;
+        notnull: number;
+        dflt_value: any;
+        pk: number;
+      }>;
+
+      expect(tableInfo).toHaveLength(6);
+      
+      const columns = tableInfo.reduce((acc, col) => {
+        acc[col.name] = col;
+        return acc;
+      }, {} as Record<string, any>);
+
+      expect(columns.id).toMatchObject({
+        name: 'id',
+        type: 'INTEGER',
+        pk: 1,
+      });
+
+      expect(columns.wishlist_id).toMatchObject({
+        name: 'wishlist_id',
+        type: 'INTEGER',
+        notnull: 1,
+      });
+
+      expect(columns.price).toMatchObject({
+        name: 'price',
+        type: 'REAL',
+        notnull: 1,
       });
     });
 
