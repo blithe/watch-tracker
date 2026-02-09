@@ -14,6 +14,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="mx-auto max-w-5xl flex items-center gap-6">
             <a href="/" className="text-lg font-semibold tracking-tight">⌚ Watch Tracker</a>
             <a href="/" className="text-sm text-zinc-400 hover:text-zinc-200">Calendar</a>
+            <a href="/collection" className="text-sm text-zinc-400 hover:text-zinc-200">Collection</a>
+            <a href="/wishlist" className="text-sm text-zinc-400 hover:text-zinc-200">Wishlist</a>
             <a href="/stats" className="text-sm text-zinc-400 hover:text-zinc-200">Stats</a>
             <a href="/log" className="text-sm text-zinc-400 hover:text-zinc-200">+ Log</a>
           </div>

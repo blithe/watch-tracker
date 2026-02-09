@@ -57,7 +57,8 @@ export default function CalendarPage({ searchParams }: { searchParams: { month?:
           const day = i + 1;
           const log = logMap.get(day);
           const dateStr = `${year}-${monthStr}-${String(day).padStart(2, '0')}`;
-          const isToday = dateStr === now.toISOString().split('T')[0];
+          const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+          const isToday = dateStr === todayStr;
           return (
             <Link
               key={day}

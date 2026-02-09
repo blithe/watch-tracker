@@ -9,7 +9,8 @@ export async function POST(req: NextRequest) {
 
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
-  const ext = file.name.split('.').pop() || 'jpg';
+  const nameParts = file.name.split('.');
+  const ext = nameParts.length > 1 ? nameParts.pop() : 'jpg';
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const filepath = path.join(process.cwd(), 'public', 'uploads', filename);
 

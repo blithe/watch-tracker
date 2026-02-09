@@ -10,6 +10,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const { brand, model, reference } = await req.json();
-  const result = db.prepare('INSERT INTO watches (brand, model, reference) VALUES (?, ?, ?)').run(brand, model, reference || null);
-  return NextResponse.json({ id: result.lastInsertRowid, brand, model, reference });
+  const normalizedReference = reference === undefined || reference === '' ? null : reference;
+  const result = db.prepare('INSERT INTO watches (brand, model, reference) VALUES (?, ?, ?)').run(brand, model, normalizedReference);
+  return NextResponse.json({ id: result.lastInsertRowid, brand, model, reference: normalizedReference });
 }
