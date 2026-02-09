@@ -23,7 +23,7 @@ export async function GET(
   const priceHistory = db.prepare(`
     SELECT * FROM price_history 
     WHERE wishlist_id = ? 
-    ORDER BY recorded_at DESC
+    ORDER BY recorded_at DESC, id DESC
   `).all(wishlistId);
 
   return NextResponse.json(priceHistory);

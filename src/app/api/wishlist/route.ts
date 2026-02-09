@@ -18,7 +18,7 @@ export async function GET() {
         price,
         source,
         recorded_at,
-        ROW_NUMBER() OVER (PARTITION BY wishlist_id ORDER BY recorded_at DESC) as rn
+        ROW_NUMBER() OVER (PARTITION BY wishlist_id ORDER BY recorded_at DESC, id DESC) as rn
       FROM price_history
     ) ph ON w.id = ph.wishlist_id AND ph.rn = 1
     ORDER BY w.created_at DESC
