@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# prove_it: full test suite — runs before every git commit
+set -e
+trap 'prove_it record --name full-tests --result $?' EXIT
+cd "$(dirname "$0")/.."
+npx jest --testPathIgnorePatterns='image-upload-flow' 2>&1

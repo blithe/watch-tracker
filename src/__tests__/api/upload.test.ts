@@ -4,24 +4,32 @@
 
 import { NextRequest } from 'next/server';
 import { POST } from '@/app/api/upload/route';
-import { writeFile } from 'fs/promises';
 
-// Mock fs/promises
-jest.mock('fs/promises');
-const mockWriteFile = writeFile as jest.MockedFunction<typeof writeFile>;
+// Mock @vercel/blob
+jest.mock('@vercel/blob', () => ({
+  put: jest.fn(),
+}));
+
+import { put } from '@vercel/blob';
+const mockPut = put as jest.MockedFunction<typeof put>;
 
 describe('/api/upload', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockWriteFile.mockResolvedValue();
+    mockPut.mockImplementation(async (filename: string) => ({
+      url: `https://blob.vercel-storage.com/${filename}`,
+      downloadUrl: `https://blob.vercel-storage.com/${filename}`,
+      pathname: filename,
+      contentType: 'image/jpeg',
+      contentDisposition: `attachment; filename="${filename}"`,
+    }) as any);
   });
 
   describe('POST /api/upload', () => {
     it('should upload a file successfully', async () => {
-      // Create a mock file
       const fileContent = 'fake image content';
       const file = new File([fileContent], 'test.jpg', { type: 'image/jpeg' });
-      
+
       const formData = new FormData();
       formData.append('file', file);
 
@@ -35,20 +43,18 @@ describe('/api/upload', () => {
 
       expect(response.status).toBe(200);
       expect(data).toHaveProperty('url');
-      expect(data.url).toMatch(/^\/uploads\/.+\.jpg$/);
+      expect(data.url).toContain('blob.vercel-storage.com');
+      expect(data.url).toMatch(/\.jpg$/);
 
-      // Verify writeFile was called
-      expect(mockWriteFile).toHaveBeenCalledTimes(1);
-      const [filepath, buffer] = mockWriteFile.mock.calls[0];
-      
-      expect(filepath).toMatch(/public\/uploads\/.+\.jpg$/);
-      expect(buffer).toBeInstanceOf(Buffer);
-      expect(buffer.toString()).toBe(fileContent);
+      expect(mockPut).toHaveBeenCalledTimes(1);
+      const [filename, blob, options] = mockPut.mock.calls[0];
+      expect(filename).toMatch(/\.jpg$/);
+      expect(options).toEqual({ access: 'public' });
     });
 
     it('should handle different file extensions', async () => {
       const file = new File(['png content'], 'test.png', { type: 'image/png' });
-      
+
       const formData = new FormData();
       formData.append('file', file);
 
@@ -61,16 +67,15 @@ describe('/api/upload', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.url).toMatch(/^\/uploads\/.+\.png$/);
+      expect(data.url).toMatch(/\.png$/);
 
-      // Verify filepath includes correct extension
-      const [filepath] = mockWriteFile.mock.calls[0];
-      expect(filepath).toMatch(/\.png$/);
+      const [filename] = mockPut.mock.calls[0];
+      expect(filename).toMatch(/\.png$/);
     });
 
     it('should default to jpg for files without extension', async () => {
       const file = new File(['no extension content'], 'noextension', { type: 'image/jpeg' });
-      
+
       const formData = new FormData();
       formData.append('file', file);
 
@@ -83,16 +88,14 @@ describe('/api/upload', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.url).toMatch(/^\/uploads\/.+\.jpg$/);
+      expect(data.url).toMatch(/\.jpg$/);
 
-      // Verify filepath defaults to jpg
-      const [filepath] = mockWriteFile.mock.calls[0];
-      expect(filepath).toMatch(/\.jpg$/);
+      const [filename] = mockPut.mock.calls[0];
+      expect(filename).toMatch(/\.jpg$/);
     });
 
     it('should return 400 when no file is provided', async () => {
       const formData = new FormData();
-      // Don't append any file
 
       const request = new NextRequest('http://localhost/api/upload', {
         method: 'POST',
@@ -104,22 +107,20 @@ describe('/api/upload', () => {
 
       expect(response.status).toBe(400);
       expect(data).toEqual({ error: 'No file' });
-      expect(mockWriteFile).not.toHaveBeenCalled();
+      expect(mockPut).not.toHaveBeenCalled();
     });
 
     it('should generate unique filenames', async () => {
       const file1 = new File(['content1'], 'test.jpg', { type: 'image/jpeg' });
       const file2 = new File(['content2'], 'test.jpg', { type: 'image/jpeg' });
-      
-      // Upload first file
+
       const formData1 = new FormData();
       formData1.append('file', file1);
       const request1 = new NextRequest('http://localhost/api/upload', {
         method: 'POST',
         body: formData1
       });
-      
-      // Upload second file
+
       const formData2 = new FormData();
       formData2.append('file', file2);
       const request2 = new NextRequest('http://localhost/api/upload', {
@@ -135,19 +136,17 @@ describe('/api/upload', () => {
 
       expect(response1.status).toBe(200);
       expect(response2.status).toBe(200);
-      
+
       // URLs should be different (unique filenames)
       expect(data1.url).not.toBe(data2.url);
-      
-      // Both should have same extension but different names
-      expect(data1.url).toMatch(/^\/uploads\/.+\.jpg$/);
-      expect(data2.url).toMatch(/^\/uploads\/.+\.jpg$/);
 
-      // Verify both writeFile calls had different paths
-      expect(mockWriteFile).toHaveBeenCalledTimes(2);
-      const [filepath1] = mockWriteFile.mock.calls[0];
-      const [filepath2] = mockWriteFile.mock.calls[1];
-      expect(filepath1).not.toBe(filepath2);
+      expect(data1.url).toMatch(/\.jpg$/);
+      expect(data2.url).toMatch(/\.jpg$/);
+
+      expect(mockPut).toHaveBeenCalledTimes(2);
+      const [filename1] = mockPut.mock.calls[0];
+      const [filename2] = mockPut.mock.calls[1];
+      expect(filename1).not.toBe(filename2);
     });
 
     it('should handle various file extensions correctly', async () => {
@@ -156,12 +155,12 @@ describe('/api/upload', () => {
         { filename: 'test.gif', expected: '.gif' },
         { filename: 'test.webp', expected: '.webp' },
         { filename: 'test.bmp', expected: '.bmp' },
-        { filename: 'test.PNG', expected: '.PNG' }, // Case sensitive
+        { filename: 'test.PNG', expected: '.PNG' },
       ];
 
       for (const testCase of testCases) {
-        mockWriteFile.mockClear();
-        
+        mockPut.mockClear();
+
         const file = new File(['content'], testCase.filename, { type: 'image/jpeg' });
         const formData = new FormData();
         formData.append('file', file);
@@ -175,17 +174,16 @@ describe('/api/upload', () => {
         const data = await response.json();
 
         expect(response.status).toBe(200);
-        expect(data.url).toContain(`uploads/`);
         expect(data.url.endsWith(testCase.expected)).toBe(true);
 
-        const [filepath] = mockWriteFile.mock.calls[0];
-        expect(filepath.endsWith(testCase.expected)).toBe(true);
+        const [filename] = mockPut.mock.calls[0];
+        expect(filename.endsWith(testCase.expected)).toBe(true);
       }
     });
 
     it('should generate filename with timestamp and random component', async () => {
       const beforeTime = Date.now();
-      
+
       const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' });
       const formData = new FormData();
       formData.append('file', file);
@@ -196,22 +194,19 @@ describe('/api/upload', () => {
       });
 
       const response = await POST(request);
-      const data = await response.json();
+      await response.json();
 
       const afterTime = Date.now();
 
       expect(response.status).toBe(200);
-      
-      // Extract the filename from the URL
-      const filename = data.url.split('/').pop();
+
+      const [filename] = mockPut.mock.calls[0];
       const [timestampPart, randomPart] = filename.split('-');
-      
-      // Verify timestamp is within expected range
+
       const timestamp = parseInt(timestampPart);
       expect(timestamp).toBeGreaterThanOrEqual(beforeTime);
       expect(timestamp).toBeLessThanOrEqual(afterTime);
-      
-      // Verify random part exists and has expected format (6 chars + .jpg)
+
       expect(randomPart).toMatch(/^[a-z0-9]{6}\.jpg$/);
     });
   });

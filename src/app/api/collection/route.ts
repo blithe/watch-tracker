@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   // Get all watches with wear counts
-  const watches = db.prepare(`
+  const watches = await db.prepare(`
     SELECT w.*,
            COUNT(wl.id) as wear_count
     FROM watches w
@@ -21,12 +21,12 @@ export async function GET() {
       const soldDate = new Date(watch.sold_date);
       const timeDiff = soldDate.getTime() - purchaseDate.getTime();
       const days_owned = Math.ceil(timeDiff / (1000 * 3600 * 24));
-      
+
       let profit_loss = null;
       if (watch.purchase_price && watch.sold_price) {
         profit_loss = watch.sold_price - watch.purchase_price;
       }
-      
+
       return { ...watch, days_owned, profit_loss };
     }
     return watch;

@@ -14,15 +14,15 @@ export async function GET(
   }
 
   // Verify the wishlist item exists
-  const wishlistItem = db.prepare('SELECT id FROM wishlist WHERE id = ?').get(wishlistId);
+  const wishlistItem = await db.prepare('SELECT id FROM wishlist WHERE id = ?').get(wishlistId);
   if (!wishlistItem) {
     return NextResponse.json({ error: 'Wishlist item not found' }, { status: 404 });
   }
 
   // Get all price history for this wishlist item
-  const priceHistory = db.prepare(`
-    SELECT * FROM price_history 
-    WHERE wishlist_id = ? 
+  const priceHistory = await db.prepare(`
+    SELECT * FROM price_history
+    WHERE wishlist_id = ?
     ORDER BY recorded_at DESC, id DESC
   `).all(wishlistId);
 
@@ -45,14 +45,14 @@ export async function POST(
   }
 
   // Verify the wishlist item exists
-  const wishlistItem = db.prepare('SELECT id FROM wishlist WHERE id = ?').get(wishlistId);
+  const wishlistItem = await db.prepare('SELECT id FROM wishlist WHERE id = ?').get(wishlistId);
   if (!wishlistItem) {
     return NextResponse.json({ error: 'Wishlist item not found' }, { status: 404 });
   }
 
   try {
-    const result = db.prepare(`
-      INSERT INTO price_history (wishlist_id, price, source, url) 
+    const result = await db.prepare(`
+      INSERT INTO price_history (wishlist_id, price, source, url)
       VALUES (?, ?, ?, ?)
     `).run(
       wishlistId,

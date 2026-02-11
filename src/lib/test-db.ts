@@ -61,7 +61,7 @@ export function getTestDb() {
         source TEXT,
         url TEXT,
         recorded_at TEXT DEFAULT (datetime('now')),
-        FOREIGN KEY (wishlist_id) REFERENCES wishlist(id)
+        FOREIGN KEY (wishlist_id) REFERENCES wishlist(id) ON DELETE CASCADE
       );
     `);
   }

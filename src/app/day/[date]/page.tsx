@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export default async function DayPage({ params }: { params: Promise<{ date: string }> }) {
   const { date } = await params;
 
-  const log = db.prepare(`
+  const log = await db.prepare(`
     SELECT wl.*, w.brand, w.model, w.reference, w.image_url as watch_image
     FROM wear_log wl
     JOIN watches w ON w.id = wl.watch_id

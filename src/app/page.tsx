@@ -21,7 +21,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const firstDay = getFirstDayOfWeek(year, month);
   const monthStr = String(month + 1).padStart(2, '0');
 
-  const logs = db.prepare(`
+  const logs = await db.prepare(`
     SELECT w.*, wl.id as wl_id, wl.date, wl.image_url as log_image, wl.notes
     FROM wear_log wl
     JOIN watches w ON w.id = wl.watch_id

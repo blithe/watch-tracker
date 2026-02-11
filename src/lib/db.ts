@@ -1,87 +1,41 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import { sql } from '@vercel/postgres';
 
-const dbPath = path.join(process.cwd(), 'watch-tracker.db');
-const db = new Database(dbPath);
-
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS watches (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    brand TEXT NOT NULL,
-    model TEXT NOT NULL,
-    reference TEXT,
-    image_url TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS wear_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    watch_id INTEGER NOT NULL,
-    date TEXT NOT NULL UNIQUE,
-    image_url TEXT,
-    notes TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (watch_id) REFERENCES watches(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS wishlist (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    brand TEXT NOT NULL,
-    model TEXT NOT NULL,
-    reference TEXT,
-    image_url TEXT,
-    target_price REAL,
-    notes TEXT,
-    status TEXT DEFAULT 'watching',
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS price_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    wishlist_id INTEGER NOT NULL,
-    price REAL NOT NULL,
-    source TEXT,
-    url TEXT,
-    recorded_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (wishlist_id) REFERENCES wishlist(id)
-  );
-`);
-
-// Add collection-related columns to watches table if they don't exist
-function addColumnIfNotExists(tableName: string, columnName: string, columnDef: string) {
-  try {
-    const tableInfo = db.prepare(`PRAGMA table_info(${tableName})`).all() as any[];
-    const columnExists = tableInfo.some((col: any) => col.name === columnName);
-    if (!columnExists) {
-      db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef}`);
-    }
-  } catch (error) {
-    // Column might already exist, ignore error
-  }
+function convertParams(query: string): string {
+  let i = 1;
+  return query.replace(/\?/g, () => `$${i++}`);
 }
 
-addColumnIfNotExists('watches', 'purchase_date', 'TEXT');
-addColumnIfNotExists('watches', 'purchase_price', 'REAL');
-addColumnIfNotExists('watches', 'sold_date', 'TEXT');
-addColumnIfNotExists('watches', 'sold_price', 'REAL');
-addColumnIfNotExists('watches', 'status', 'TEXT DEFAULT "owned"');
-addColumnIfNotExists('watches', 'notes', 'TEXT');
-
-// Seed if empty
-const count = db.prepare('SELECT COUNT(*) as c FROM watches').get() as { c: number };
-if (count.c === 0) {
-  const insert = db.prepare('INSERT INTO watches (brand, model, reference) VALUES (?, ?, ?)');
-  const result = insert.run('Grand Seiko', 'SBGW289', 'SBGW289');
-  db.prepare('INSERT INTO wear_log (watch_id, date, notes) VALUES (?, ?, ?)').run(
-    result.lastInsertRowid,
-    '2026-02-08',
-    'First day tracking!'
-  );
+function prepareStatement(query: string) {
+  const pgQuery = convertParams(query);
+  return {
+    async all(...params: any[]) {
+      const result = await sql.query(pgQuery, params);
+      return result.rows;
+    },
+    async get(...params: any[]) {
+      const result = await sql.query(pgQuery, params);
+      return result.rows[0] || undefined;
+    },
+    async run(...params: any[]) {
+      let q = pgQuery;
+      // Auto-append RETURNING id for INSERT so lastInsertRowid works
+      if (/^\s*INSERT\s/i.test(q) && !/RETURNING/i.test(q)) {
+        q += ' RETURNING id';
+      }
+      const result = await sql.query(q, params);
+      return {
+        changes: result.rowCount ?? 0,
+        lastInsertRowid: result.rows[0]?.id ?? null,
+      };
+    },
+  };
 }
+
+const db = {
+  prepare(query: string) {
+    return prepareStatement(query);
+  },
+};
 
 export default db;
 

@@ -2,10 +2,11 @@ import db from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-export default function StatsPage() {
-  const totalDays = (db.prepare('SELECT COUNT(*) as c FROM wear_log').get() as { c: number }).c;
+export default async function StatsPage() {
+  const totalDaysRow = await db.prepare('SELECT COUNT(*) as c FROM wear_log').get() as { c: number };
+  const totalDays = totalDaysRow.c;
 
-  const wearCounts = db.prepare(`
+  const wearCounts = await db.prepare(`
     SELECT w.brand, w.model, w.reference, COUNT(*) as count
     FROM wear_log wl JOIN watches w ON w.id = wl.watch_id
     GROUP BY wl.watch_id ORDER BY count DESC
@@ -14,7 +15,7 @@ export default function StatsPage() {
   const mostWorn = wearCounts[0] || null;
 
   // Current streak: consecutive days ending today (or most recent logged day)
-  const allDates = db.prepare('SELECT date FROM wear_log ORDER BY date DESC').all() as Array<{ date: string }>;
+  const allDates = await db.prepare('SELECT date FROM wear_log ORDER BY date DESC').all() as Array<{ date: string }>;
   let streak = 0;
   if (allDates.length > 0) {
     let expected = new Date(allDates[0].date + 'T12:00:00');
