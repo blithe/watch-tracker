@@ -8,26 +8,31 @@ import { POST as createWatch } from '@/app/api/watches/route';
 import { PATCH as updateWatch } from '@/app/api/watches/[id]/route';
 import { POST as logWear } from '@/app/api/wear-log/route';
 import { getTestDb, resetTestDb, closeTestDb } from '@/lib/test-db';
-import fs from 'fs';
-import path from 'path';
+import { put } from '@vercel/blob';
 
 // Mock the main db module to use test database
 jest.mock('../../lib/db', () => {
   return require('../../lib/test-db').getTestDb();
 });
 
-// Mock fs.writeFile for upload tests
-jest.mock('fs/promises', () => ({
-  writeFile: jest.fn().mockResolvedValue(undefined)
+// Mock @vercel/blob for upload tests
+jest.mock('@vercel/blob', () => ({
+  put: jest.fn(),
 }));
 
-const { writeFile } = require('fs/promises');
+const mockPut = put as jest.MockedFunction<typeof put>;
 
 describe('Integration: Image Upload Flow', () => {
   beforeEach(() => {
     resetTestDb();
-    // Reset the mock
-    writeFile.mockClear();
+    mockPut.mockClear();
+    mockPut.mockImplementation(async (filename: string) => ({
+      url: `https://blob.vercel-storage.com/${filename}`,
+      downloadUrl: `https://blob.vercel-storage.com/${filename}`,
+      pathname: filename,
+      contentType: 'image/jpeg',
+      contentDisposition: `attachment; filename="${filename}"`,
+    }) as any);
   });
 
   afterAll(() => {
@@ -57,17 +62,15 @@ describe('Integration: Image Upload Flow', () => {
 
     const uploadResult = await uploadResponse.json();
     
-    // Step 2: Verify returned URL path is valid
+    // Step 2: Verify returned URL is valid
     expect(uploadResult).toHaveProperty('url');
-    expect(uploadResult.url).toMatch(/^\/uploads\/\d+-[a-z0-9]{6}\.jpg$/);
-    
-    // Verify the file would have been written to the correct path
-    expect(writeFile).toHaveBeenCalledTimes(1);
-    const [filepath, buffer] = writeFile.mock.calls[0];
-    
-    expect(filepath).toMatch(/public\/uploads\/\d+-[a-z0-9]{6}\.jpg$/);
-    expect(buffer).toBeInstanceOf(Buffer);
-    expect(buffer.toString()).toBe(mockFileContent);
+    expect(uploadResult.url).toMatch(/^https:\/\/blob\.vercel-storage\.com\/\d+-[a-z0-9]{6}\.jpg$/);
+
+    // Verify blob put was called with correct args
+    expect(mockPut).toHaveBeenCalledTimes(1);
+    const [filename, , options] = mockPut.mock.calls[0];
+    expect(filename).toMatch(/^\d+-[a-z0-9]{6}\.jpg$/);
+    expect(options).toEqual({ access: 'public' });
 
     // Step 3: Create a watch first
     const watchData = {
@@ -147,7 +150,7 @@ describe('Integration: Image Upload Flow', () => {
     ];
 
     for (const { filename, type, expectedExt } of testCases) {
-      writeFile.mockClear();
+      mockPut.mockClear();
 
       const mockFile = new File(['content'], filename, { type });
       const formData = new FormData();
@@ -162,11 +165,11 @@ describe('Integration: Image Upload Flow', () => {
       expect(uploadResponse.status).toBe(200);
 
       const uploadResult = await uploadResponse.json();
-      expect(uploadResult.url).toMatch(new RegExp(`^\/uploads\/\\d+-[a-z0-9]{6}\\.${expectedExt}$`));
+      expect(uploadResult.url).toMatch(new RegExp(`^https://blob\\.vercel-storage\\.com/\\d+-[a-z0-9]{6}\\.${expectedExt}$`));
 
-      // Verify file path has correct extension
-      const [filepath] = writeFile.mock.calls[0];
-      expect(filepath).toMatch(new RegExp(`\\.${expectedExt}$`));
+      // Verify blob was called with correct extension
+      const [blobFilename] = mockPut.mock.calls[0];
+      expect(blobFilename).toMatch(new RegExp(`\\.${expectedExt}$`));
     }
   });
 
@@ -185,8 +188,8 @@ describe('Integration: Image Upload Flow', () => {
     const errorResult = await uploadResponse.json();
     expect(errorResult).toEqual({ error: 'No file' });
 
-    // Verify no file was written
-    expect(writeFile).not.toHaveBeenCalled();
+    // Verify blob put was not called
+    expect(mockPut).not.toHaveBeenCalled();
   });
 
   it('should generate unique filenames for multiple uploads', async () => {
@@ -194,7 +197,7 @@ describe('Integration: Image Upload Flow', () => {
 
     // Upload the same file multiple times
     for (let i = 0; i < 3; i++) {
-      writeFile.mockClear();
+      mockPut.mockClear();
 
       const mockFile = new File(['content'], 'same-file.jpg', { type: 'image/jpeg' });
       const formData = new FormData();
@@ -221,7 +224,7 @@ describe('Integration: Image Upload Flow', () => {
 
     // All should match the expected pattern
     uploads.forEach(url => {
-      expect(url).toMatch(/^\/uploads\/\d+-[a-z0-9]{6}\.jpg$/);
+      expect(url).toMatch(/^https:\/\/blob\.vercel-storage\.com\/\d+-[a-z0-9]{6}\.jpg$/);
     });
   });
 
@@ -242,7 +245,7 @@ describe('Integration: Image Upload Flow', () => {
     const watchImageResult = await watchImageResponse.json();
 
     // Upload a wear-specific image
-    writeFile.mockClear();
+    mockPut.mockClear();
     const wearImageFile = new File(['wear-image'], 'wear.jpg', { type: 'image/jpeg' });
     const wearImageFormData = new FormData();
     wearImageFormData.append('file', wearImageFile);
