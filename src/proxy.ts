@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionToken, verifyToken, COOKIE_NAME } from '@/lib/auth';
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const password = process.env.AUTH_PASSWORD;
   // No password configured = no auth required
   if (!password) return NextResponse.next();
