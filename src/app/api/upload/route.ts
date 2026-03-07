@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
+import { writeFile } from 'fs/promises';
+import { join } from 'path';
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
@@ -10,6 +12,12 @@ export async function POST(req: NextRequest) {
   const ext = nameParts.length > 1 ? nameParts.pop() : 'jpg';
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-  const blob = await put(filename, file, { access: 'public' });
-  return NextResponse.json({ url: blob.url });
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const blob = await put(filename, file, { access: 'public' });
+    return NextResponse.json({ url: blob.url });
+  } else {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await writeFile(join(process.cwd(), 'public', 'uploads', filename), buffer);
+    return NextResponse.json({ url: `/uploads/${filename}` });
+  }
 }

@@ -25,6 +25,8 @@ const mockPut = put as jest.MockedFunction<typeof put>;
 describe('Integration: Image Upload Flow', () => {
   beforeEach(() => {
     resetTestDb();
+    // Force blob mode in integration tests
+    process.env.BLOB_READ_WRITE_TOKEN = 'test-token';
     mockPut.mockClear();
     mockPut.mockImplementation(async (filename: string) => ({
       url: `https://blob.vercel-storage.com/${filename}`,
@@ -33,6 +35,10 @@ describe('Integration: Image Upload Flow', () => {
       contentType: 'image/jpeg',
       contentDisposition: `attachment; filename="${filename}"`,
     }) as any);
+  });
+
+  afterEach(() => {
+    delete process.env.BLOB_READ_WRITE_TOKEN;
   });
 
   afterAll(() => {
