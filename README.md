@@ -116,7 +116,7 @@ watch-tracker/
 │   │   ├── auth.ts                  # Auth token generation + verification
 │   │   ├── db.ts                    # Dual-mode DB (SQLite local / Postgres prod)
 │   │   └── test-db.ts               # Isolated SQLite for tests
-│   ├── middleware.ts                 # Auth middleware (session cookie check)
+│   ├── proxy.ts                     # Auth proxy (session cookie check, Next.js 16)
 │   └── __tests__/
 │       ├── api/                     # API route tests
 │       ├── integration/             # End-to-end flow tests

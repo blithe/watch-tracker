@@ -1,5 +1,4 @@
 import { cookies } from 'next/headers';
-import { timingSafeEqual } from 'crypto';
 
 const COOKIE_NAME = 'wt_session';
 
@@ -18,12 +17,12 @@ export function verifyToken(actual: string, expected: string): boolean {
   const encoder = new TextEncoder();
   const a = encoder.encode(actual);
   const b = encoder.encode(expected);
-  if (a.byteLength !== b.byteLength) {
-    // Compare expected against itself to consume constant time, then return false
-    timingSafeEqual(b, b);
-    return false;
+  if (a.byteLength !== b.byteLength) return false;
+  let result = 0;
+  for (let i = 0; i < a.byteLength; i++) {
+    result |= a[i] ^ b[i];
   }
-  return timingSafeEqual(a, b);
+  return result === 0;
 }
 
 export async function isAuthenticated(): Promise<boolean> {
