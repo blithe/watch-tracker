@@ -144,6 +144,49 @@ describe('/api/watches', () => {
       expect(data.reference).toBeNull();
     });
 
+    it('should return existing watch instead of creating a duplicate', async () => {
+      const requestBody = { brand: 'Seiko', model: 'SKX007', reference: 'SKX007K1' };
+      const request1 = new NextRequest('http://localhost/api/watches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+      const request2 = new NextRequest('http://localhost/api/watches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      const response1 = await POST(request1);
+      const data1 = await response1.json();
+      const response2 = await POST(request2);
+      const data2 = await response2.json();
+
+      expect(data1.id).toBe(data2.id);
+
+      const db = getTestDb();
+      const all = db.prepare('SELECT * FROM watches WHERE brand = ? AND model = ?').all('Seiko', 'SKX007');
+      expect(all).toHaveLength(1);
+    });
+
+    it('should treat watches with different references as distinct', async () => {
+      const req1 = new NextRequest('http://localhost/api/watches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand: 'Seiko', model: 'SKX007', reference: 'SKX007K1' })
+      });
+      const req2 = new NextRequest('http://localhost/api/watches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand: 'Seiko', model: 'SKX007', reference: 'SKX007K2' })
+      });
+
+      const data1 = await (await POST(req1)).json();
+      const data2 = await (await POST(req2)).json();
+
+      expect(data1.id).not.toBe(data2.id);
+    });
+
     it('should require brand and model', async () => {
       // Test missing brand
       const requestWithoutBrand = new NextRequest('http://localhost/api/watches', {

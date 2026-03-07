@@ -197,7 +197,7 @@ CREATE TABLE price_history (
 |--------|----------|-------------|
 | `POST` | `/api/auth/login` | Authenticate with password, sets session cookie |
 | `GET` | `/api/watches` | List all watches |
-| `POST` | `/api/watches` | Add a new watch |
+| `POST` | `/api/watches` | Add a new watch (returns existing if brand/model/reference match) |
 | `GET` | `/api/watches/[id]` | Get single watch with wear count |
 | `PATCH` | `/api/watches/[id]` | Update a watch (details, mark as sold) |
 | `GET` | `/api/collection` | List watches split by owned/sold |
