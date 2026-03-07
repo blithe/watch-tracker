@@ -2,9 +2,9 @@
 
 A personal watch collection and wear-tracking app. Log which watch you're wearing each day, manage your collection with purchase/sale tracking, maintain a wishlist with price monitoring, and view stats about your rotation.
 
-Built with Next.js 14, TypeScript, SQLite, and Tailwind CSS.
+Built with Next.js 16, TypeScript, SQLite (local) / Vercel Postgres (production), and Tailwind CSS.
 
-![Next.js](https://img.shields.io/badge/Next.js-14-black) ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue) ![SQLite](https://img.shields.io/badge/SQLite-3-003B57) ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38bdf8)
+![Next.js](https://img.shields.io/badge/Next.js-16-black) ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue) ![SQLite](https://img.shields.io/badge/SQLite-3-003B57) ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38bdf8)
 
 ## Features
 
@@ -14,16 +14,18 @@ Built with Next.js 14, TypeScript, SQLite, and Tailwind CSS.
 - **Collection management** — Track your watches with purchase date, price, and sale history
 - **Wishlist & price monitoring** — Track watches you want, log prices from different sources, mark as purchased
 - **Stats dashboard** — Most-worn watches, streak tracking, collection overview
-- **Image uploads** — Upload wrist shots stored locally in `public/uploads/`
+- **Image uploads** — Vercel Blob in production, local file storage in development
+- **Password auth** — Optional single-password protection via `AUTH_PASSWORD` env var
 - **Dark mode** — Tailwind dark theme throughout
 
 ## Tech Stack
 
 | Layer | Tech |
 |-------|------|
-| Framework | [Next.js 14](https://nextjs.org/) (App Router) |
+| Framework | [Next.js 16](https://nextjs.org/) (App Router) |
 | Language | TypeScript |
-| Database | SQLite via [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) |
+| Database | SQLite ([better-sqlite3](https://github.com/WiseLibs/better-sqlite3)) locally, [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres) in production |
+| Image storage | Local `public/uploads/` in dev, [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) in production |
 | Styling | [Tailwind CSS](https://tailwindcss.com/) |
 | Testing | [Jest](https://jestjs.io/) + [React Testing Library](https://testing-library.com/) |
 | Runtime | Node.js 18+ |
@@ -48,6 +50,14 @@ Open [http://localhost:3000](http://localhost:3000).
 
 The SQLite database (`watch-tracker.db`) is created automatically on first run with a seed entry.
 
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `AUTH_PASSWORD` | No | If set, enables password protection. Leave unset for open access. |
+| `POSTGRES_URL` | Production | Vercel Postgres connection string |
+| `BLOB_READ_WRITE_TOKEN` | Production | Vercel Blob token for image uploads |
+
 ### Build for Production
 
 ```bash
@@ -61,12 +71,14 @@ npm start
 npm test
 ```
 
-Tests use an isolated in-memory SQLite database — they won't touch your production data. The suite covers:
+Tests use an isolated SQLite database — they won't touch your production data. The suite covers:
 
-- **API routes** — watches, wear log, wishlist, price history, uploads
+- **API routes** — watches, wear log, wishlist, price history, uploads, auth
 - **Database** — schema validation, foreign keys, constraints
+- **Auth** — token generation, verification, middleware
 - **Date handling** — local time formatting (no UTC drift)
 - **Page rendering** — date parameter parsing
+- **Integration** — end-to-end flows for calendar, collection, wishlist, image uploads
 
 To run tests in watch mode during development:
 
@@ -83,6 +95,7 @@ watch-tracker/
 │   │   ├── page.tsx                  # Calendar view (home)
 │   │   ├── layout.tsx                # Root layout + nav
 │   │   ├── globals.css               # Tailwind base styles
+│   │   ├── login/page.tsx            # Login page
 │   │   ├── log/page.tsx              # Log a new wear entry
 │   │   ├── day/[date]/page.tsx       # Day detail view
 │   │   ├── stats/page.tsx            # Stats dashboard
@@ -92,20 +105,29 @@ watch-tracker/
 │   │   │   ├── add/page.tsx         # Add to wishlist
 │   │   │   └── [id]/page.tsx        # Price history detail
 │   │   └── api/
+│   │       ├── auth/login/route.ts  # Login endpoint
 │   │       ├── watches/route.ts     # CRUD for watch collection
 │   │       ├── wear-log/route.ts    # CRUD for wear log entries
-│   │       ├── upload/route.ts      # Image upload handler
+│   │       ├── upload/route.ts      # Image upload (Vercel Blob)
 │   │       ├── collection/route.ts  # Collection endpoints
+│   │       ├── db-init/route.ts     # First-deploy schema init (Postgres)
 │   │       └── wishlist/            # Wishlist + price history endpoints
 │   ├── lib/
-│   │   └── db.ts                    # SQLite connection + schema + types
+│   │   ├── auth.ts                  # Auth token generation + verification
+│   │   ├── db.ts                    # Dual-mode DB (SQLite local / Postgres prod)
+│   │   └── test-db.ts               # Isolated SQLite for tests
+│   ├── middleware.ts                 # Auth middleware (session cookie check)
 │   └── __tests__/
 │       ├── api/                     # API route tests
-│       ├── lib/                     # Database tests
+│       ├── integration/             # End-to-end flow tests
+│       ├── lib/                     # Database + auth tests
 │       ├── pages/                   # Page rendering tests
 │       └── utils/                   # Date formatting tests
 ├── public/
-│   └── uploads/                     # Uploaded images (gitignored)
+│   └── uploads/                     # Uploaded images in dev (gitignored)
+├── script/
+│   ├── test                         # Pre-commit test runner
+│   └── test_fast                    # Fast test runner
 ├── jest.config.*                    # Jest configuration
 ├── tailwind.config.ts
 ├── tsconfig.json
@@ -129,7 +151,7 @@ CREATE TABLE watches (
   sold_price REAL,
   status TEXT DEFAULT 'owned',       -- 'owned' or 'sold'
   notes TEXT,
-  created_at TEXT DEFAULT (datetime('now'))
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 -- One entry per day — which watch you wore
@@ -139,7 +161,7 @@ CREATE TABLE wear_log (
   date TEXT NOT NULL UNIQUE,
   image_url TEXT,
   notes TEXT,
-  created_at TEXT DEFAULT (datetime('now')),
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (watch_id) REFERENCES watches(id)
 );
 
@@ -153,8 +175,8 @@ CREATE TABLE wishlist (
   target_price REAL,
   notes TEXT,
   status TEXT DEFAULT 'watching',    -- 'watching', 'purchased', 'removed'
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now'))
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Price tracking for wishlist items
@@ -164,8 +186,8 @@ CREATE TABLE price_history (
   price REAL NOT NULL,
   source TEXT,                       -- 'chrono24', 'ebay', 'manual', etc.
   url TEXT,
-  recorded_at TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (wishlist_id) REFERENCES wishlist(id)
+  recorded_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (wishlist_id) REFERENCES wishlist(id) ON DELETE CASCADE
 );
 ```
 
@@ -173,10 +195,11 @@ CREATE TABLE price_history (
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| `POST` | `/api/auth/login` | Authenticate with password, sets session cookie |
 | `GET` | `/api/watches` | List all watches |
 | `POST` | `/api/watches` | Add a new watch |
-| `PATCH` | `/api/watches/[id]` | Update a watch (details, mark as sold) |
 | `GET` | `/api/watches/[id]` | Get single watch with wear count |
+| `PATCH` | `/api/watches/[id]` | Update a watch (details, mark as sold) |
 | `GET` | `/api/collection` | List watches split by owned/sold |
 | `GET` | `/api/wear-log` | Get wear log (supports `?month=YYYY-MM`) |
 | `POST` | `/api/wear-log` | Log a wear entry |
@@ -187,21 +210,20 @@ CREATE TABLE price_history (
 | `DELETE` | `/api/wishlist` | Remove a wishlist item |
 | `GET` | `/api/wishlist/[id]/prices` | Get price history |
 | `POST` | `/api/wishlist/[id]/prices` | Add a price entry |
+| `GET` | `/api/db-init` | Initialize Postgres schema on first deploy |
+
+## Deployment (Vercel)
+
+1. Push to GitHub and import the repo in Vercel
+2. Add environment variables: `AUTH_PASSWORD`, `POSTGRES_URL`, `BLOB_READ_WRITE_TOKEN`
+3. After first deploy, hit `/api/db-init` once to create the Postgres schema
 
 ## Roadmap
 
 - [x] **Phase 1** — Core app: calendar, logging, stats, image uploads
 - [x] **Phase 2** — Wishlist & price monitoring
-- [ ] **Phase 3** — Multi-user auth & deployment
+- [x] **Phase 3** — Auth & Vercel deployment support
 - [ ] **Phase 4** — Instagram integration
-
-## Contributing
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feat/cool-thing`)
-3. Make your changes
-4. Run `npm test` to verify nothing broke
-5. Push and open a PR
 
 ## License
 
