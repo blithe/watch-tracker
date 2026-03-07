@@ -3,4 +3,4 @@
 set -e
 trap 'prove_it record --name full-tests --result $?' EXIT
 cd "$(dirname "$0")/.."
-npx jest --testPathIgnorePatterns='image-upload-flow' 2>&1
+npx jest 2>&1
