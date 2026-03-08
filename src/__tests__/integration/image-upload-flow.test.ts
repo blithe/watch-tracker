@@ -70,12 +70,12 @@ describe('Integration: Image Upload Flow', () => {
     
     // Step 2: Verify returned URL is valid
     expect(uploadResult).toHaveProperty('url');
-    expect(uploadResult.url).toMatch(/^https:\/\/blob\.vercel-storage\.com\/\d+-[a-z0-9]{6}\.jpg$/);
+    expect(uploadResult.url).toMatch(/^https:\/\/blob\.vercel-storage\.com\/\d+-[a-f0-9]{12}\.jpg$/);
 
     // Verify blob put was called with correct args
     expect(mockPut).toHaveBeenCalledTimes(1);
     const [filename, , options] = mockPut.mock.calls[0];
-    expect(filename).toMatch(/^\d+-[a-z0-9]{6}\.jpg$/);
+    expect(filename).toMatch(/^\d+-[a-f0-9]{12}\.jpg$/);
     expect(options).toEqual({ access: 'public' });
 
     // Step 3: Create a watch first
@@ -152,7 +152,7 @@ describe('Integration: Image Upload Flow', () => {
       { filename: 'test.gif', type: 'image/gif', expectedExt: 'gif' },
       { filename: 'test.webp', type: 'image/webp', expectedExt: 'webp' },
       { filename: 'test', type: 'image/jpeg', expectedExt: 'jpg' }, // No extension defaults to jpg
-      { filename: 'test.JPEG', type: 'image/jpeg', expectedExt: 'JPEG' } // Preserve case
+      { filename: 'test.JPEG', type: 'image/jpeg', expectedExt: 'jpeg' } // Lowercased for consistency
     ];
 
     for (const { filename, type, expectedExt } of testCases) {
@@ -171,7 +171,7 @@ describe('Integration: Image Upload Flow', () => {
       expect(uploadResponse.status).toBe(200);
 
       const uploadResult = await uploadResponse.json();
-      expect(uploadResult.url).toMatch(new RegExp(`^https://blob\\.vercel-storage\\.com/\\d+-[a-z0-9]{6}\\.${expectedExt}$`));
+      expect(uploadResult.url).toMatch(new RegExp(`^https://blob\\.vercel-storage\\.com/\\d+-[a-f0-9]{12}\\.${expectedExt}$`));
 
       // Verify blob was called with correct extension
       const [blobFilename] = mockPut.mock.calls[0];
@@ -230,7 +230,7 @@ describe('Integration: Image Upload Flow', () => {
 
     // All should match the expected pattern
     uploads.forEach(url => {
-      expect(url).toMatch(/^https:\/\/blob\.vercel-storage\.com\/\d+-[a-z0-9]{6}\.jpg$/);
+      expect(url).toMatch(/^https:\/\/blob\.vercel-storage\.com\/\d+-[a-f0-9]{12}\.jpg$/);
     });
   });
 

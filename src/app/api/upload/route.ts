@@ -9,9 +9,20 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File;
     if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 });
 
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 400 });
+    }
+
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif'];
+    if (!ALLOWED_TYPES.includes(file.type.toLowerCase())) {
+      return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 });
+    }
+
     const nameParts = file.name.split('.');
-    const ext = nameParts.length > 1 ? nameParts.pop() : 'jpg';
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const ext = (nameParts.length > 1 ? nameParts.pop() : 'jpg')!.toLowerCase();
+    const randomPart = crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+    const filename = `${Date.now()}-${randomPart}.${ext}`;
 
     if (process.env.BLOB_READ_WRITE_TOKEN) {
       const blob = await put(filename, file, { access: 'public' });

@@ -93,12 +93,12 @@ describe('/api/upload', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.url).toMatch(/^\/uploads\/\d+-[a-z0-9]{6}\.jpg$/);
+      expect(data.url).toMatch(/^\/uploads\/\d+-[a-f0-9]{12}\.jpg$/);
       expect(mockWriteFile).toHaveBeenCalledTimes(1);
       expect(mockPut).not.toHaveBeenCalled();
 
       const [filepath, buffer] = mockWriteFile.mock.calls[0];
-      expect(filepath).toMatch(/public\/uploads\/\d+-[a-z0-9]{6}\.jpg$/);
+      expect(filepath).toMatch(/public\/uploads\/\d+-[a-f0-9]{12}\.jpg$/);
       expect(buffer).toBeInstanceOf(Buffer);
       expect(buffer.toString()).toBe(fileContent);
     });
@@ -116,6 +116,50 @@ describe('/api/upload', () => {
         expect(response.status).toBe(200);
         expect(data.url).toMatch(new RegExp(`\\.${ext}$`));
       }
+    });
+  });
+
+  describe('security validation', () => {
+    it('should reject files larger than 10MB', async () => {
+      process.env.BLOB_READ_WRITE_TOKEN = 'test-token';
+      const largeContent = 'x'.repeat(11 * 1024 * 1024);
+      const file = new File([largeContent], 'big.jpg', { type: 'image/jpeg' });
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await POST(new NextRequest('http://localhost/api/upload', { method: 'POST', body: formData }));
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toMatch(/too large/i);
+      delete process.env.BLOB_READ_WRITE_TOKEN;
+    });
+
+    it('should reject non-image file types', async () => {
+      process.env.BLOB_READ_WRITE_TOKEN = 'test-token';
+      const file = new File(['<script>alert(1)</script>'], 'evil.html', { type: 'text/html' });
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await POST(new NextRequest('http://localhost/api/upload', { method: 'POST', body: formData }));
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toMatch(/only image/i);
+      delete process.env.BLOB_READ_WRITE_TOKEN;
+    });
+
+    it('should accept valid image types', async () => {
+      process.env.BLOB_READ_WRITE_TOKEN = 'test-token';
+      for (const type of ['image/jpeg', 'image/png', 'image/webp', 'image/heic']) {
+        const file = new File(['content'], 'photo.jpg', { type });
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await POST(new NextRequest('http://localhost/api/upload', { method: 'POST', body: formData }));
+        expect(response.status).toBe(200);
+      }
+      delete process.env.BLOB_READ_WRITE_TOKEN;
     });
   });
 
