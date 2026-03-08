@@ -4,10 +4,17 @@ import db, { CollectionWatch } from '@/lib/db';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  // Get all watches with wear counts
+  // Get all watches with wear counts; fall back to first wear log photo when no watch photo
   const watches = await db.prepare(`
     SELECT w.*,
-           COUNT(wl.id) as wear_count
+           COUNT(wl.id) as wear_count,
+           COALESCE(w.image_url, (
+             SELECT wl2.image_url
+             FROM wear_log wl2
+             WHERE wl2.watch_id = w.id AND wl2.image_url IS NOT NULL
+             ORDER BY wl2.date ASC
+             LIMIT 1
+           )) as image_url
     FROM watches w
     LEFT JOIN wear_log wl ON w.id = wl.watch_id
     GROUP BY w.id
