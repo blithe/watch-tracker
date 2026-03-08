@@ -72,9 +72,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
               {!cellImage && (
                 <div className={`absolute inset-0 ${log ? 'bg-zinc-800/50' : ''} ${isToday ? 'bg-blue-500/10' : ''}`} />
               )}
-              <span className={`absolute top-1 left-1 text-xs font-semibold z-10 leading-none
+              <span className={`absolute top-1.5 left-1.5 text-xs font-semibold z-10 leading-none px-1.5 py-0.5 rounded-md
                 ${cellImage
-                  ? 'bg-black/50 text-white rounded px-1 py-0.5'
+                  ? 'bg-black/65 text-white'
                   : isToday ? 'text-blue-400' : 'text-zinc-400'}`}>
                 {day}
               </span>
