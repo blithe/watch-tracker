@@ -169,6 +169,24 @@ describe('/api/watches', () => {
       expect(all).toHaveLength(1);
     });
 
+    it('should return existing watch instead of duplicating when reference is null', async () => {
+      const body = { brand: 'Casio', model: 'F-91W' }; // no reference → null
+      const make = () => new NextRequest('http://localhost/api/watches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const data1 = await (await POST(make())).json();
+      const data2 = await (await POST(make())).json();
+
+      expect(data1.id).toBe(data2.id);
+
+      const db = getTestDb();
+      const all = db.prepare('SELECT * FROM watches WHERE brand = ? AND model = ?').all('Casio', 'F-91W');
+      expect(all).toHaveLength(1);
+    });
+
     it('should treat watches with different references as distinct', async () => {
       const req1 = new NextRequest('http://localhost/api/watches', {
         method: 'POST',

@@ -199,12 +199,18 @@ export default function WishlistDetailPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="max-w-4xl">
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center justify-between mb-6">
         <Link
           href="/wishlist"
           className="text-zinc-400 hover:text-zinc-200 transition-colors"
         >
           ← Back to Wishlist
+        </Link>
+        <Link
+          href={`/wishlist/${id}/edit`}
+          className="bg-zinc-700 hover:bg-zinc-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          Edit
         </Link>
       </div>
 

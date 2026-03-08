@@ -12,9 +12,10 @@ export async function POST(req: NextRequest) {
   const { brand, model, reference } = await req.json();
   const normalizedReference = reference === undefined || reference === '' ? null : reference;
 
-  const existing = await db.prepare(
-    'SELECT id FROM watches WHERE brand = ? AND model = ? AND reference IS ?'
-  ).get(brand, model, normalizedReference);
+  // Use separate queries for null/non-null reference — IS ? is SQLite-only syntax
+  const existing = normalizedReference === null
+    ? await db.prepare('SELECT id FROM watches WHERE brand = ? AND model = ? AND reference IS NULL').get(brand, model)
+    : await db.prepare('SELECT id FROM watches WHERE brand = ? AND model = ? AND reference = ?').get(brand, model, normalizedReference);
 
   if (existing) {
     return NextResponse.json({ id: existing.id, brand, model, reference: normalizedReference });
