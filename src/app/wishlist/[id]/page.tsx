@@ -10,6 +10,7 @@ interface WishlistItem {
   model: string;
   reference: string | null;
   image_url: string | null;
+  source_url: string | null;
   target_price: number | null;
   notes: string | null;
   status: string;
@@ -272,6 +273,19 @@ export default function WishlistDetailPage({ params }: { params: Promise<{ id: s
               <div className="mb-6">
                 <h3 className="font-medium mb-2">Notes</h3>
                 <p className="text-sm text-zinc-300">{item.notes}</p>
+              </div>
+            )}
+
+            {item.source_url && (
+              <div className="mb-6">
+                <a
+                  href={item.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 text-sm underline"
+                >
+                  View source →
+                </a>
               </div>
             )}
 

@@ -102,7 +102,7 @@ describe('Database initialization and schema', () => {
         pk: number;
       }>;
 
-      expect(tableInfo).toHaveLength(10);
+      expect(tableInfo).toHaveLength(11);
       
       const columns = tableInfo.reduce((acc, col) => {
         acc[col.name] = col;

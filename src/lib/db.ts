@@ -51,6 +51,7 @@ function createSqliteDb(): DB {
       model TEXT NOT NULL,
       reference TEXT,
       image_url TEXT,
+      source_url TEXT,
       target_price REAL,
       notes TEXT,
       status TEXT DEFAULT 'watching',
@@ -68,6 +69,9 @@ function createSqliteDb(): DB {
       FOREIGN KEY (wishlist_id) REFERENCES wishlist(id) ON DELETE CASCADE
     );
   `);
+
+  // Migrate existing databases: add columns added after initial schema
+  try { sqlite.exec(`ALTER TABLE wishlist ADD COLUMN source_url TEXT`); } catch {}
 
   return sqlite;
 }
@@ -156,6 +160,7 @@ export interface Wishlist {
   model: string;
   reference: string | null;
   image_url: string | null;
+  source_url: string | null;
   target_price: number | null;
   notes: string | null;
   status: string;

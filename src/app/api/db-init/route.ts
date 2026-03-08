@@ -40,6 +40,7 @@ export async function GET() {
         model TEXT NOT NULL,
         reference TEXT,
         image_url TEXT,
+        source_url TEXT,
         target_price REAL,
         notes TEXT,
         status TEXT DEFAULT 'watching',
@@ -47,6 +48,8 @@ export async function GET() {
         updated_at TIMESTAMPTZ DEFAULT NOW()
       )
     `;
+
+    await sql`ALTER TABLE wishlist ADD COLUMN IF NOT EXISTS source_url TEXT`;
 
     await sql`
       CREATE TABLE IF NOT EXISTS price_history (

@@ -47,6 +47,7 @@ export function getTestDb() {
         model TEXT NOT NULL,
         reference TEXT,
         image_url TEXT,
+        source_url TEXT,
         target_price REAL,
         notes TEXT,
         status TEXT DEFAULT 'watching',

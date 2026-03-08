@@ -28,16 +28,17 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { brand, model, reference, image_url, target_price, notes, status } = await req.json();
+  const { brand, model, reference, image_url, source_url, target_price, notes, status } = await req.json();
 
   const result = await db.prepare(`
-    INSERT INTO wishlist (brand, model, reference, image_url, target_price, notes, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO wishlist (brand, model, reference, image_url, source_url, target_price, notes, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     brand,
     model,
     reference || null,
     image_url || null,
+    source_url || null,
     target_price || null,
     notes || null,
     status || 'watching'
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
     model,
     reference: reference || null,
     image_url: image_url || null,
+    source_url: source_url || null,
     target_price: target_price || null,
     notes: notes || null,
     status: status || 'watching'
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const { id, brand, model, reference, image_url, target_price, notes, status } = await req.json();
+  const { id, brand, model, reference, image_url, source_url, target_price, notes, status } = await req.json();
 
   if (!id) {
     return NextResponse.json({ error: 'ID is required' }, { status: 400 });
@@ -65,13 +67,14 @@ export async function PATCH(req: NextRequest) {
   // Update the updated_at timestamp
   const result = await db.prepare(`
     UPDATE wishlist
-    SET brand = ?, model = ?, reference = ?, image_url = ?, target_price = ?, notes = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+    SET brand = ?, model = ?, reference = ?, image_url = ?, source_url = ?, target_price = ?, notes = ?, status = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).run(
     brand,
     model,
     reference || null,
     image_url || null,
+    source_url || null,
     target_price || null,
     notes || null,
     status,

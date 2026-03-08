@@ -10,11 +10,13 @@ export default function AddWishlistPage() {
     brand: '',
     model: '',
     reference: '',
-    image_url: '',
+    source_url: '',
     target_price: '',
     notes: '',
     status: 'watching',
   });
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -24,6 +26,16 @@ export default function AddWishlistPage() {
       ...prev,
       [name]: value
     }));
+  }
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] || null;
+    setPhoto(file);
+    if (file) {
+      setPhotoPreview(URL.createObjectURL(file));
+    } else {
+      setPhotoPreview(null);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -38,8 +50,19 @@ export default function AddWishlistPage() {
     }
 
     try {
+      let image_url: string | null = null;
+      if (photo) {
+        const uploadForm = new FormData();
+        uploadForm.append('file', photo);
+        const uploadRes = await fetch('/api/upload', { method: 'POST', body: uploadForm });
+        if (!uploadRes.ok) throw new Error('Failed to upload photo');
+        const { url } = await uploadRes.json();
+        image_url = url;
+      }
+
       const submitData = {
         ...formData,
+        image_url,
         target_price: formData.target_price ? Number(formData.target_price) : null,
       };
 
@@ -117,14 +140,27 @@ export default function AddWishlistPage() {
         </div>
 
         <div>
-          <label className="block text-sm text-zinc-400 mb-2">Image URL</label>
+          <label className="block text-sm text-zinc-400 mb-2">Photo</label>
+          {photoPreview && (
+            <img src={photoPreview} alt="Preview" className="w-32 h-32 object-cover rounded-lg mb-2" />
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handlePhotoChange}
+            className="w-full text-sm text-zinc-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-zinc-700 file:text-zinc-200 hover:file:bg-zinc-600"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-zinc-400 mb-2">Source URL</label>
           <input
             type="url"
-            name="image_url"
-            value={formData.image_url}
+            name="source_url"
+            value={formData.source_url}
             onChange={handleChange}
             className={inputClasses}
-            placeholder="https://example.com/watch-image.jpg"
+            placeholder="https://example.com/watch-listing"
           />
         </div>
 
@@ -185,7 +221,7 @@ export default function AddWishlistPage() {
           >
             {loading ? 'Adding...' : 'Add to Wishlist'}
           </button>
-          
+
           <Link
             href="/wishlist"
             className="px-6 py-3 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm font-medium transition-colors"
