@@ -28,13 +28,13 @@ export default function EditWatchPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [showSoldFields, setShowSoldFields] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
     brand: '',
     model: '',
     reference: '',
-    image_url: '',
     purchase_date: '',
     purchase_price: '',
     sold_date: '',
@@ -55,7 +55,6 @@ export default function EditWatchPage() {
         brand: watch.brand || '',
         model: watch.model || '',
         reference: watch.reference || '',
-        image_url: watch.image_url || '',
         purchase_date: watch.purchase_date || '',
         purchase_price: watch.purchase_price?.toString() || '',
         sold_date: watch.sold_date || '',
@@ -115,12 +114,23 @@ export default function EditWatchPage() {
     setError('');
 
     try {
+      let image_url: string | null | undefined = undefined;
+
+      if (photo) {
+        const uploadForm = new FormData();
+        uploadForm.append('file', photo);
+        const uploadRes = await fetch('/api/upload', { method: 'POST', body: uploadForm });
+        if (!uploadRes.ok) throw new Error('Failed to upload photo');
+        const { url } = await uploadRes.json();
+        image_url = url;
+      }
+
       // Prepare data for API
       const updateData: any = {
         brand: formData.brand,
         model: formData.model,
         reference: formData.reference || null,
-        image_url: formData.image_url || null,
+        ...(image_url !== undefined ? { image_url } : {}),
         purchase_date: formData.purchase_date || null,
         purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : null,
         status: formData.status,
@@ -236,16 +246,22 @@ export default function EditWatchPage() {
 
           <div>
             <label className="block text-sm font-medium text-zinc-300 mb-2">
-              Image URL
+              Photo
             </label>
+            {(photo ? URL.createObjectURL(photo) : watch.image_url) && (
+              <img
+                src={photo ? URL.createObjectURL(photo) : watch.image_url!}
+                alt="Watch"
+                className="mb-2 h-32 rounded-lg object-cover"
+              />
+            )}
             <input
-              type="url"
-              name="image_url"
-              value={formData.image_url}
-              onChange={handleInputChange}
-              className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="https://..."
+              type="file"
+              accept="image/*"
+              onChange={e => setPhoto(e.target.files?.[0] ?? null)}
+              className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-3 file:rounded file:border-0 file:bg-zinc-600 file:text-zinc-100 file:px-3 file:py-1 file:text-sm"
             />
+            <p className="text-xs text-zinc-400 mt-1">Upload a new photo to replace the current one</p>
           </div>
 
           {/* Purchase Info */}
