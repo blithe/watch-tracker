@@ -65,28 +65,24 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
             <Link
               key={day}
               href={`/day/${dateStr}`}
-              className={`block rounded-lg border overflow-hidden transition-colors
+              className={`relative aspect-square rounded-lg border overflow-hidden transition-colors
                 ${isToday ? 'border-blue-500' : 'border-zinc-800 hover:border-zinc-600'}`}
+              style={cellImage ? { backgroundImage: `url(${cellImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
             >
-              {/* h-0 + pb-[100%] forces a square regardless of image natural size */}
-              <div className="relative h-0 pb-[100%]">
-                {cellImage ? (
-                  <img src={cellImage} alt="" className="absolute inset-0 w-full h-full object-cover object-center" />
-                ) : (
-                  <div className={`absolute inset-0 ${log ? 'bg-zinc-800/50' : ''} ${isToday ? 'bg-blue-500/10' : ''}`} />
-                )}
-                <span className={`absolute top-1 left-1 text-xs font-semibold z-10 leading-none
-                  ${cellImage
-                    ? 'bg-black/50 text-white rounded px-1 py-0.5'
-                    : isToday ? 'text-blue-400' : 'text-zinc-400'}`}>
-                  {day}
+              {!cellImage && (
+                <div className={`absolute inset-0 ${log ? 'bg-zinc-800/50' : ''} ${isToday ? 'bg-blue-500/10' : ''}`} />
+              )}
+              <span className={`absolute top-1 left-1 text-xs font-semibold z-10 leading-none
+                ${cellImage
+                  ? 'bg-black/50 text-white rounded px-1 py-0.5'
+                  : isToday ? 'text-blue-400' : 'text-zinc-400'}`}>
+                {day}
+              </span>
+              {log && !cellImage && (
+                <span className="absolute bottom-1 inset-x-0 text-center text-[9px] text-zinc-500 leading-tight px-1 truncate">
+                  {log.brand}
                 </span>
-                {log && !cellImage && (
-                  <span className="absolute bottom-1 inset-x-0 text-center text-[9px] text-zinc-500 leading-tight px-1 truncate">
-                    {log.brand}
-                  </span>
-                )}
-              </div>
+              )}
             </Link>
           );
         })}
