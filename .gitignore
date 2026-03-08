@@ -8,3 +8,5 @@ public/uploads/*.png
 public/uploads/*.heic
 !public/uploads/.gitkeep
 .claude/prove_it.local.json
+.vercel
+*.pdf
