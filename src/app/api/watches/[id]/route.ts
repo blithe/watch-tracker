@@ -34,6 +34,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   });
 }
 
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id: idStr } = await params;
+  const id = parseInt(idStr);
+
+  // Delete associated wear log entries first
+  await db.prepare('DELETE FROM wear_log WHERE watch_id = ?').run(id);
+
+  const result = await db.prepare('DELETE FROM watches WHERE id = ?').run(id);
+
+  if (result.changes === 0) {
+    return NextResponse.json({ error: 'Watch not found' }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = await params;
   const id = parseInt(idStr);

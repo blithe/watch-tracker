@@ -15,15 +15,19 @@ npm test -- --testNamePattern="test name"      # Run tests matching name
 
 ## Architecture
 
-Personal watch tracker built with Next.js 16 (App Router), TypeScript, Vercel Postgres, and Tailwind CSS. Deployed on Vercel.
+Personal watch tracker built with Next.js 16 (App Router), TypeScript, and Tailwind CSS.
 
 ### Data Layer
 
-- **Production database**: Vercel Postgres via `@vercel/postgres` in `src/lib/db.ts`
-- **db.ts adapter**: Wraps `@vercel/postgres` with a `db.prepare(sql).all/get/run()` interface (converts `?` params to `$1,$2,...`)
-- **Schema init**: `/api/db-init` route creates tables on first deploy
-- **Tables**: `watches` (collection), `wear_log` (daily wear entries, unique date constraint), `wishlist`, `price_history` (tracks wishlist item prices over time)
-- **Image uploads**: Vercel Blob via `@vercel/blob`
+- **Dual-mode database** in `src/lib/db.ts`: SQLite (better-sqlite3) locally, Vercel Postgres in production
+  - Switches based on `POSTGRES_URL` env var presence
+  - Unified `db.prepare(sql).all/get/run()` interface
+  - SQL uses `?` params (converted to `$1,$2,...` for Postgres)
+  - Use `CURRENT_TIMESTAMP` (not `NOW()` or `datetime('now')`) for cross-DB compatibility
+- **Local schema**: Auto-created on import of `db.ts` (SQLite)
+- **Production schema**: `/api/db-init` route creates tables on first deploy (Postgres)
+- **Tables**: `watches` (collection), `wear_log` (daily wear entries, unique date constraint), `wishlist`, `price_history` (tracks wishlist item prices over time, ON DELETE CASCADE)
+- **Image uploads**: Vercel Blob via `@vercel/blob` in production; local file storage in dev
 
 ### API Pattern
 
@@ -50,5 +54,5 @@ REST endpoints in `src/app/api/`. All routes export `dynamic = 'force-dynamic'` 
 
 - Jest 30 with ts-jest and React Testing Library
 - Tests in `src/__tests__/` (subdirs: `api/`, `integration/`, `lib/`, `utils/`)
-- Test database: isolated SQLite via `src/lib/test-db.ts` (better-sqlite3, devDependency) — each test file gets its own DB instance
+- Test database: isolated SQLite via `src/lib/test-db.ts` — each test file gets its own DB instance
 - `jest.setup.js` mocks `next/navigation` and `fs/promises`

@@ -72,6 +72,12 @@ export default function CollectionPage() {
     return new Date(dateStr).toLocaleDateString();
   };
 
+  async function handleDeleteWatch(id: number) {
+    if (!confirm('Delete this watch? This cannot be undone.')) return;
+    await fetch(`/api/watches/${id}`, { method: 'DELETE' });
+    fetchCollection();
+  }
+
   const WatchCard = ({ watch, isSold = false }: { watch: CollectionWatch; isSold?: boolean }) => (
     <div className={`bg-zinc-800/50 border border-zinc-700 rounded-xl p-6 transition-all hover:bg-zinc-800/70 ${isSold ? 'opacity-75' : ''}`}>
       {watch.image_url && (
@@ -163,6 +169,12 @@ export default function CollectionPage() {
         >
           Edit
         </Link>
+        <button
+          onClick={() => handleDeleteWatch(watch.id)}
+          className="bg-red-600/20 hover:bg-red-600/40 text-red-400 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          Delete
+        </button>
       </div>
     </div>
   );

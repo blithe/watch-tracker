@@ -3,4 +3,4 @@
 set -e
 trap 'prove_it record --name fast-tests --result $?' EXIT
 cd "$(dirname "$0")/.."
-npx jest --bail --testPathIgnorePatterns='integration' 2>&1
+arch -arm64 npx jest --bail --testPathIgnorePatterns='integration' 2>&1

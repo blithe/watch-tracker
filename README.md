@@ -200,9 +200,12 @@ CREATE TABLE price_history (
 | `POST` | `/api/watches` | Add a new watch (returns existing if brand/model/reference match) |
 | `GET` | `/api/watches/[id]` | Get single watch with wear count |
 | `PATCH` | `/api/watches/[id]` | Update a watch (details, mark as sold) |
+| `DELETE` | `/api/watches/[id]` | Delete a watch and its wear log entries |
 | `GET` | `/api/collection` | List watches split by owned/sold |
 | `GET` | `/api/wear-log` | Get wear log (supports `?month=YYYY-MM`) |
 | `POST` | `/api/wear-log` | Log a wear entry |
+| `GET` | `/api/wear-log/[id]` | Get a single wear log entry with watch info |
+| `DELETE` | `/api/wear-log/[id]` | Delete a wear log entry |
 | `POST` | `/api/upload` | Upload an image, returns `{ url }` |
 | `GET` | `/api/wishlist` | List wishlist items with latest prices |
 | `POST` | `/api/wishlist` | Add a wishlist item |

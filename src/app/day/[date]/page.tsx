@@ -1,5 +1,6 @@
 import db from '@/lib/db';
 import Link from 'next/link';
+import DeleteLogButton from './DeleteLogButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,11 +25,15 @@ export default async function DayPage({ params }: { params: Promise<{ date: stri
             {(log.image_url || log.watch_image) && (
               <img src={log.image_url || log.watch_image || ''} alt="" className="w-32 h-32 rounded-lg object-cover" />
             )}
-            <div>
+            <div className="flex-1">
               <h2 className="text-xl font-semibold">{log.brand} {log.model}</h2>
               {log.reference && <p className="text-zinc-400 text-sm">Ref. {log.reference}</p>}
               {log.notes && <p className="mt-3 text-zinc-300">{log.notes}</p>}
             </div>
+          </div>
+          <div className="mt-4 flex gap-3">
+            <Link href={`/log?date=${date}`} className="text-sm text-blue-400 hover:text-blue-300">Edit</Link>
+            <DeleteLogButton id={log.id} />
           </div>
         </div>
       ) : (
