@@ -60,21 +60,27 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           const dateStr = `${year}-${monthStr}-${String(day).padStart(2, '0')}`;
           const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
           const isToday = dateStr === todayStr;
+          const cellImage = log?.log_image || log?.image_url || null;
           return (
             <Link
               key={day}
               href={`/day/${dateStr}`}
-              className={`aspect-square rounded-lg border flex flex-col items-center justify-center gap-1 text-xs transition-colors
-                ${isToday ? 'border-blue-500 bg-blue-500/10' : 'border-zinc-800 hover:border-zinc-600'}
-                ${log ? 'bg-zinc-800/50' : ''}`}
+              className={`relative aspect-square rounded-lg border overflow-hidden transition-colors
+                ${isToday ? 'border-blue-500' : 'border-zinc-800 hover:border-zinc-600'}`}
             >
-              <span className={`${isToday ? 'text-blue-400 font-bold' : 'text-zinc-400'}`}>{day}</span>
-              {log && (
-                log.log_image || log.image_url ? (
-                  <img src={log.log_image || log.image_url || ''} alt="" className="w-8 h-8 rounded object-cover" />
-                ) : (
-                  <span className="text-[10px] text-zinc-500 text-center leading-tight">{log.brand}</span>
-                )
+              {cellImage ? (
+                <img src={cellImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              ) : (
+                <div className={`absolute inset-0 ${log ? 'bg-zinc-800/50' : ''} ${isToday ? 'bg-blue-500/10' : ''}`} />
+              )}
+              <span className={`absolute top-1 left-1.5 text-xs font-semibold z-10 drop-shadow
+                ${isToday ? 'text-blue-400' : cellImage ? 'text-white' : 'text-zinc-400'}`}>
+                {day}
+              </span>
+              {log && !cellImage && (
+                <span className="absolute bottom-1 inset-x-0 text-center text-[9px] text-zinc-500 leading-tight px-1 truncate">
+                  {log.brand}
+                </span>
               )}
             </Link>
           );
