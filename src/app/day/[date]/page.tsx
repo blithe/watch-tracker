@@ -1,6 +1,7 @@
 import db from '@/lib/db';
 import Link from 'next/link';
 import DeleteLogButton from './DeleteLogButton';
+import DayImage from './DayImage';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,7 @@ export default async function DayPage({ params }: { params: Promise<{ date: stri
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
           <div className="flex gap-6">
             {(log.image_url || log.watch_image) && (
-              <img src={log.image_url || log.watch_image || ''} alt="" className="w-32 h-32 rounded-lg object-cover" />
+              <DayImage src={log.image_url || log.watch_image || ''} alt={`${log.brand} ${log.model}`} />
             )}
             <div className="flex-1">
               <h2 className="text-xl font-semibold">{log.brand} {log.model}</h2>

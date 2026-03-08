@@ -45,7 +45,7 @@ export default async function StatsPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
           <p className="text-zinc-400 text-sm">Most Worn</p>
           <p className="text-xl font-bold mt-1">{mostWorn ? `${mostWorn.brand} ${mostWorn.model}` : '—'}</p>
-          {mostWorn && <p className="text-zinc-500 text-sm">{mostWorn.wear_count} day{mostWorn.wear_count !== 1 ? 's' : ''}</p>}
+          {mostWorn && <p className="text-zinc-500 text-sm">{mostWorn.wear_count} day{Number(mostWorn.wear_count) !== 1 ? 's' : ''}</p>}
         </div>
       </div>
 
