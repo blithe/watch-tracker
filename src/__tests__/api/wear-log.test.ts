@@ -3,7 +3,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { POST } from '@/app/api/wear-log/route';
+import { GET, POST } from '@/app/api/wear-log/route';
 import { getTestDb, resetTestDb, closeTestDb, seedTestData } from '@/lib/test-db';
 
 // Mock the main db module to use test database
@@ -18,6 +18,72 @@ describe('/api/wear-log', () => {
 
   afterAll(() => {
     closeTestDb();
+  });
+
+  describe('GET /api/wear-log', () => {
+    it('should return log for a specific date', async () => {
+      const { watch1Id } = seedTestData();
+
+      const req = new NextRequest('http://localhost/api/wear-log?date=2026-02-08');
+      const response = await GET(req);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toMatchObject({
+        date: '2026-02-08',
+        watch_id: watch1Id,
+      });
+      expect(data).toHaveProperty('brand');
+      expect(data).toHaveProperty('model');
+    });
+
+    it('should return null for a date with no log', async () => {
+      seedTestData();
+
+      const req = new NextRequest('http://localhost/api/wear-log?date=2000-01-01');
+      const response = await GET(req);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toBeNull();
+    });
+
+    it('should return logs for a given month', async () => {
+      const { watch1Id } = seedTestData();
+
+      const req = new NextRequest('http://localhost/api/wear-log?month=2026-02');
+      const response = await GET(req);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(data)).toBe(true);
+      expect(data.length).toBeGreaterThan(0);
+      expect(data[0]).toHaveProperty('date');
+      expect(data[0]).toHaveProperty('brand');
+    });
+
+    it('should return empty array for month with no logs', async () => {
+      seedTestData();
+
+      const req = new NextRequest('http://localhost/api/wear-log?month=2000-01');
+      const response = await GET(req);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual([]);
+    });
+
+    it('should return all logs when no params provided', async () => {
+      seedTestData();
+
+      const req = new NextRequest('http://localhost/api/wear-log');
+      const response = await GET(req);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(data)).toBe(true);
+      expect(data.length).toBeGreaterThan(0);
+    });
   });
 
   describe('POST /api/wear-log', () => {
