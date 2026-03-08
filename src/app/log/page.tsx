@@ -10,6 +10,13 @@ interface Watch {
   reference: string | null;
 }
 
+interface ExistingLog {
+  id: number;
+  watch_id: number;
+  image_url: string | null;
+  notes: string | null;
+}
+
 export default function LogPage() {
   return <Suspense fallback={<div>Loading...</div>}><LogForm /></Suspense>;
 }
@@ -32,10 +39,29 @@ function LogForm() {
   const [mode, setMode] = useState<'existing' | 'new'>('existing');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [existingLog, setExistingLog] = useState<ExistingLog | null>(null);
 
   useEffect(() => {
     fetch('/api/watches').then(r => r.json()).then(setWatches);
   }, []);
+
+  useEffect(() => {
+    if (!date) return;
+    fetch(`/api/wear-log?date=${date}`)
+      .then(r => r.json())
+      .then((log: ExistingLog | null) => {
+        if (log) {
+          setExistingLog(log);
+          setWatchId(String(log.watch_id));
+          setNotes(log.notes || '');
+          setMode('existing');
+        } else {
+          setExistingLog(null);
+          setWatchId('');
+          setNotes('');
+        }
+      });
+  }, [date]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,7 +84,7 @@ function LogForm() {
 
       if (!selectedWatchId) { setError('Select or create a watch'); setLoading(false); return; }
 
-      let imageUrl = '';
+      let imageUrl = existingLog?.image_url || '';
       if (photo) {
         const fd = new FormData();
         fd.append('file', photo);
@@ -67,17 +93,32 @@ function LogForm() {
         imageUrl = data.url;
       }
 
-      const res = await fetch('/api/wear-log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ watch_id: Number(selectedWatchId), date, image_url: imageUrl, notes }),
-      });
-
-      if (!res.ok) {
-        const d = await res.json();
-        setError(d.error || 'Failed to log');
-        setLoading(false);
-        return;
+      if (existingLog) {
+        // Update existing entry
+        const res = await fetch(`/api/wear-log/${existingLog.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ watch_id: Number(selectedWatchId), image_url: imageUrl, notes }),
+        });
+        if (!res.ok) {
+          const d = await res.json();
+          setError(d.error || 'Failed to update');
+          setLoading(false);
+          return;
+        }
+      } else {
+        // Create new entry
+        const res = await fetch('/api/wear-log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ watch_id: Number(selectedWatchId), date, image_url: imageUrl, notes }),
+        });
+        if (!res.ok) {
+          const d = await res.json();
+          setError(d.error || 'Failed to log');
+          setLoading(false);
+          return;
+        }
       }
 
       router.push(`/day/${date}`);
@@ -91,7 +132,9 @@ function LogForm() {
 
   return (
     <div className="max-w-lg">
-      <h1 className="text-2xl font-bold mb-6">Log a Watch</h1>
+      <h1 className="text-2xl font-bold mb-2">{existingLog ? 'Edit Log Entry' : 'Log a Watch'}</h1>
+      {existingLog && <p className="text-sm text-zinc-400 mb-6">Updating existing entry — change the photo, notes, or watch.</p>}
+      {!existingLog && <div className="mb-6" />}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm text-zinc-400 mb-1">Date</label>
@@ -118,7 +161,11 @@ function LogForm() {
 
         <div>
           <label className="block text-sm text-zinc-400 mb-1">Photo (optional)</label>
+          {existingLog?.image_url && !photo && (
+            <img src={existingLog.image_url} alt="" className="w-20 h-20 rounded-lg object-cover mb-2" />
+          )}
           <input type="file" accept="image/*" onChange={e => setPhoto(e.target.files?.[0] || null)} className="text-sm text-zinc-400" />
+          {existingLog?.image_url && <p className="text-xs text-zinc-500 mt-1">Upload a new photo to replace the current one.</p>}
         </div>
 
         <div>
@@ -129,7 +176,7 @@ function LogForm() {
         {error && <p className="text-red-400 text-sm">{error}</p>}
 
         <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg py-2 text-sm font-medium transition-colors">
-          {loading ? 'Saving...' : 'Log Watch'}
+          {loading ? 'Saving...' : existingLog ? 'Update Entry' : 'Log Watch'}
         </button>
       </form>
     </div>
