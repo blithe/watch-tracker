@@ -36,10 +36,16 @@ describe('CalendarCell', () => {
       expect(wrapper.className).toContain('rounded-lg');
     });
 
-    it('has aspect-square so cells are always square', () => {
+    it('has an in-flow spacer with pb-[100%] so cells are square even with no in-flow content', () => {
+      // aspect-ratio alone does not set cell height when all children are
+      // absolutely positioned (no in-flow content = no height contribution).
+      // A pb-[100%] spacer div forces height = width purely via padding.
       const { container } = render(<CalendarCell {...baseProps} />);
       const link = container.querySelector('a')!;
-      expect(link.className).toContain('aspect-square');
+      const spacer = Array.from(link.children).find(
+        el => el.className.includes('pb-[100%]')
+      );
+      expect(spacer).toBeDefined();
     });
 
     it('has self-start so grid cannot stretch cell beyond its square size', () => {
