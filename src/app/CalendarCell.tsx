@@ -13,12 +13,13 @@ export default function CalendarCell({ day, dateStr, isToday, cellImage, hasLog,
   return (
     <Link
       href={`/day/${dateStr}`}
-      className={`relative aspect-square self-start rounded-lg border overflow-hidden transition-colors
+      className={`relative aspect-square self-start rounded-lg border transition-colors
         ${isToday ? 'border-blue-500' : 'border-zinc-800 hover:border-zinc-600'}`}
-      style={{ contain: 'paint' } as React.CSSProperties}
     >
       {cellImage ? (
-        <img src={cellImage} alt="" className="absolute inset-0 w-full h-full object-cover object-center" />
+        <div className="absolute inset-0 overflow-hidden rounded-lg">
+          <img src={cellImage} alt="" className="w-full h-full object-cover object-center" />
+        </div>
       ) : (
         <div className={`absolute inset-0 ${hasLog ? 'bg-zinc-800/50' : ''} ${isToday ? 'bg-blue-500/10' : ''}`} />
       )}

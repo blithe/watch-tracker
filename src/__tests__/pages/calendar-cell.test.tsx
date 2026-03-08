@@ -22,16 +22,18 @@ describe('CalendarCell', () => {
   };
 
   describe('cell containment — prevents image overflow', () => {
-    it('has overflow-hidden to clip content', () => {
-      const { container } = render(<CalendarCell {...baseProps} />);
-      const link = container.querySelector('a')!;
-      expect(link.className).toContain('overflow-hidden');
+    it('image wrapper has overflow-hidden to clip the photo to the cell', () => {
+      const { container } = render(<CalendarCell {...baseProps} cellImage="/test.jpg" />);
+      const img = container.querySelector('img')!;
+      const wrapper = img.parentElement!;
+      expect(wrapper.className).toContain('overflow-hidden');
     });
 
-    it('has contain:paint to reliably clip images including in Safari', () => {
+    it('image wrapper has rounded-lg matching the cell border-radius', () => {
       const { container } = render(<CalendarCell {...baseProps} cellImage="/test.jpg" />);
-      const link = container.querySelector('a')!;
-      expect(link.style.contain).toBe('paint');
+      const img = container.querySelector('img')!;
+      const wrapper = img.parentElement!;
+      expect(wrapper.className).toContain('rounded-lg');
     });
 
     it('has aspect-square so cells are always square', () => {
@@ -53,6 +55,29 @@ describe('CalendarCell', () => {
     });
   });
 
+  describe('date badge visibility over images', () => {
+    it('badge is NOT inside the image clipping container', () => {
+      // If the badge is inside the same overflow-hidden div as the image it can
+      // be obscured. The badge must be a sibling of the image wrapper, not a
+      // child, so overflow/contain clipping never hides it.
+      const { container } = render(<CalendarCell {...baseProps} cellImage="/wrist.jpg" />);
+      const img = container.querySelector('img')!;
+      const badge = container.querySelector('span')!;
+      // The image should be inside a dedicated wrapper div, not directly in <a>
+      const imgWrapper = img.parentElement!;
+      expect(imgWrapper.tagName.toLowerCase()).not.toBe('a');
+      // The badge must NOT be inside that same wrapper
+      expect(imgWrapper.contains(badge)).toBe(false);
+    });
+
+    it('image wrapper has overflow-hidden to clip the photo', () => {
+      const { container } = render(<CalendarCell {...baseProps} cellImage="/wrist.jpg" />);
+      const img = container.querySelector('img')!;
+      const imgWrapper = img.parentElement!;
+      expect(imgWrapper.className).toContain('overflow-hidden');
+    });
+  });
+
   describe('image — must fill cell without overflow', () => {
     it('renders an img element when cellImage is provided', () => {
       const { container } = render(<CalendarCell {...baseProps} cellImage="/wrist.jpg" />);
@@ -64,11 +89,12 @@ describe('CalendarCell', () => {
       expect(container.querySelector('img')).not.toBeInTheDocument();
     });
 
-    it('image is absolutely positioned so it does not push cell height', () => {
+    it('image wrapper is absolutely positioned so it does not push cell height', () => {
       const { container } = render(<CalendarCell {...baseProps} cellImage="/wrist.jpg" />);
       const img = container.querySelector('img')!;
-      expect(img.className).toContain('absolute');
-      expect(img.className).toContain('inset-0');
+      const wrapper = img.parentElement!;
+      expect(wrapper.className).toContain('absolute');
+      expect(wrapper.className).toContain('inset-0');
     });
 
     it('image fills the cell with w-full h-full', () => {
