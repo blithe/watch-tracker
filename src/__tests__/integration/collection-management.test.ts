@@ -6,6 +6,7 @@ import { NextRequest } from 'next/server';
 import { POST as createWatch } from '@/app/api/watches/route';
 import { PATCH as updateWatch } from '@/app/api/watches/[id]/route';
 import { GET as getCollection } from '@/app/api/collection/route';
+import { POST as logWear } from '@/app/api/wear-log/route';
 import { getTestDb, resetTestDb, closeTestDb } from '@/lib/test-db';
 
 // Mock the main db module to use test database
@@ -400,6 +401,62 @@ describe('Integration: Collection Management Journey', () => {
     const db = getTestDb();
     const dbWatch = db.prepare('SELECT * FROM watches WHERE id = ?').get(watch.id);
     expect(dbWatch).toMatchObject(updateData);
+  });
+
+  it('should use first wear log photo as fallback when watch has no image_url', async () => {
+    const createResponse = await createWatch(new NextRequest('http://localhost/api/watches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brand: 'Seiko', model: 'SKX007' })
+    }));
+    const watch = await createResponse.json();
+
+    // Log two wears with photos — earliest should win
+    await logWear(new NextRequest('http://localhost/api/wear-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ watch_id: watch.id, date: '2025-01-10', image_url: '/uploads/first.jpg' })
+    }));
+    await logWear(new NextRequest('http://localhost/api/wear-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ watch_id: watch.id, date: '2025-02-15', image_url: '/uploads/second.jpg' })
+    }));
+
+    const collectionData = await (await getCollection()).json();
+    const collectionWatch = collectionData.owned.find((w: any) => w.id === watch.id);
+
+    // Should show the first (earliest) wear log photo
+    expect(collectionWatch.image_url).toBe('/uploads/first.jpg');
+  });
+
+  it('should prefer watch image_url over wear log photo fallback', async () => {
+    const createResponse = await createWatch(new NextRequest('http://localhost/api/watches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brand: 'Omega', model: 'Seamaster' })
+    }));
+    const watch = await createResponse.json();
+
+    // Set a dedicated watch photo
+    await updateWatch(new NextRequest(`http://localhost/api/watches/${watch.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_url: '/uploads/watch-photo.jpg' })
+    }), { params: { id: watch.id.toString() } });
+
+    // Log a wear with a different photo
+    await logWear(new NextRequest('http://localhost/api/wear-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ watch_id: watch.id, date: '2025-03-01', image_url: '/uploads/wrist-shot.jpg' })
+    }));
+
+    const collectionData = await (await getCollection()).json();
+    const collectionWatch = collectionData.owned.find((w: any) => w.id === watch.id);
+
+    // Watch's own image_url takes priority over the wear log photo
+    expect(collectionWatch.image_url).toBe('/uploads/watch-photo.jpg');
   });
 
   it('should handle empty strings as null for optional fields', async () => {
