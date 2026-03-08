@@ -90,6 +90,7 @@ function LogForm() {
         fd.append('file', photo);
         const res = await fetch('/api/upload', { method: 'POST', body: fd });
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
         imageUrl = data.url;
       }
 
@@ -122,8 +123,8 @@ function LogForm() {
       }
 
       router.push(`/day/${date}`);
-    } catch (err) {
-      setError('Something went wrong');
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong');
       setLoading(false);
     }
   }
