@@ -7,10 +7,10 @@ export default async function StatsPage() {
   const totalDays = totalDaysRow.c;
 
   const wearCounts = await db.prepare(`
-    SELECT w.brand, w.model, w.reference, COUNT(*) as count
+    SELECT w.brand, w.model, w.reference, COUNT(*) as wear_count
     FROM wear_log wl JOIN watches w ON w.id = wl.watch_id
-    GROUP BY wl.watch_id ORDER BY count DESC
-  `).all() as Array<{ brand: string; model: string; reference: string | null; count: number }>;
+    GROUP BY wl.watch_id, w.brand, w.model, w.reference ORDER BY wear_count DESC
+  `).all() as Array<{ brand: string; model: string; reference: string | null; wear_count: number }>;
 
   const mostWorn = wearCounts[0] || null;
 
@@ -45,7 +45,7 @@ export default async function StatsPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
           <p className="text-zinc-400 text-sm">Most Worn</p>
           <p className="text-xl font-bold mt-1">{mostWorn ? `${mostWorn.brand} ${mostWorn.model}` : '—'}</p>
-          {mostWorn && <p className="text-zinc-500 text-sm">{mostWorn.count} day{mostWorn.count !== 1 ? 's' : ''}</p>}
+          {mostWorn && <p className="text-zinc-500 text-sm">{mostWorn.wear_count} day{mostWorn.wear_count !== 1 ? 's' : ''}</p>}
         </div>
       </div>
 
@@ -54,7 +54,7 @@ export default async function StatsPage() {
         {wearCounts.map((w, i) => (
           <div key={i} className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3">
             <span>{w.brand} {w.model} {w.reference ? `(${w.reference})` : ''}</span>
-            <span className="text-zinc-400 font-mono">{w.count}</span>
+            <span className="text-zinc-400 font-mono">{w.wear_count}</span>
           </div>
         ))}
         {wearCounts.length === 0 && <p className="text-zinc-500">No data yet.</p>}
