@@ -69,7 +69,8 @@ export default function CollectionPage() {
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return null;
-    return new Date(dateStr).toLocaleDateString();
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString();
   };
 
   async function handleDeleteWatch(id: number) {

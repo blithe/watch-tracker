@@ -70,7 +70,8 @@ export default function WatchDetailPage() {
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return null;
-    return new Date(dateStr).toLocaleDateString();
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString();
   };
 
   const calculateDaysOwned = (purchaseDate: string | null, soldDate: string | null) => {
