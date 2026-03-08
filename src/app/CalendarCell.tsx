@@ -13,11 +13,9 @@ export default function CalendarCell({ day, dateStr, isToday, cellImage, hasLog,
   return (
     <Link
       href={`/day/${dateStr}`}
-      className={`relative self-start rounded-lg border transition-colors
+      className={`relative self-start h-0 pb-[100%] rounded-lg border transition-colors
         ${isToday ? 'border-blue-500' : 'border-zinc-800 hover:border-zinc-600'}`}
     >
-      {/* Forces cell height = cell width regardless of whether children are in flow */}
-      <div className="w-full pb-[100%]" aria-hidden="true" />
       {cellImage ? (
         <div className="absolute inset-0 overflow-hidden rounded-lg">
           <img src={cellImage} alt="" className="w-full h-full object-cover object-center" />
