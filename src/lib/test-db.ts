@@ -1,16 +1,22 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import { createSessionToken, COOKIE_NAME } from './auth';
+import crypto from 'crypto';
+import { COOKIE_NAME } from './auth';
 
 let testDb: Database.Database;
 
 export const TEST_USER_ID = 1;
 export const TEST_USER_EMAIL = 'test@example.com';
 
-/** Returns a valid session cookie value for the test user */
+/** Returns a valid session cookie value for the test user.
+ *  Uses Node.js crypto directly (sync) since route handlers only decode the payload,
+ *  not re-verify HMAC (middleware handles that in production). */
 export function getTestSessionToken(): string {
-  return createSessionToken(TEST_USER_ID);
+  const secret = process.env.SESSION_SECRET || 'dev-secret-change-in-production';
+  const payload = Buffer.from(`${TEST_USER_ID}:${Date.now()}`).toString('base64url');
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return `${payload}.${sig}`;
 }
 
 /** Returns headers with a valid auth cookie for the test user */

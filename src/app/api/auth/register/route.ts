@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   ).run(normalizedEmail, password_hash);
 
   const userId = result.lastInsertRowid as number;
-  const token = createSessionToken(userId);
+  const token = await createSessionToken(userId);
   const response = NextResponse.json({ ok: true });
   response.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,

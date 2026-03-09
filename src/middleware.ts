@@ -16,7 +16,7 @@ const PUBLIC_PATHS = new Set([
   '/api/db-init',
 ]);
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (PUBLIC_PATHS.has(pathname)) {
@@ -24,7 +24,7 @@ export function middleware(req: NextRequest) {
   }
 
   const token = req.cookies.get(COOKIE_NAME)?.value;
-  const userId = token ? verifySessionToken(token) : null;
+  const userId = token ? await verifySessionToken(token) : null;
 
   if (!userId) {
     if (pathname.startsWith('/api/')) {
