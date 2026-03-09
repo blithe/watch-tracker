@@ -14,7 +14,6 @@ const PUBLIC_PATHS = new Set([
   '/api/auth/reset-password',
   '/api/feedback',
   '/api/db-init',
-  '/api/admin/migrate-ownership',
 ]);
 
 export async function middleware(req: NextRequest) {
