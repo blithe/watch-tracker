@@ -1,23 +1,50 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { createSessionToken, COOKIE_NAME } from './auth';
 
 let testDb: Database.Database;
+
+export const TEST_USER_ID = 1;
+export const TEST_USER_EMAIL = 'test@example.com';
+
+/** Returns a valid session cookie value for the test user */
+export function getTestSessionToken(): string {
+  return createSessionToken(TEST_USER_ID);
+}
+
+/** Returns headers with a valid auth cookie for the test user */
+export function getAuthHeaders(): Record<string, string> {
+  return {
+    'Cookie': `${COOKIE_NAME}=${getTestSessionToken()}`,
+  };
+}
 
 export function getTestDb() {
   if (!testDb) {
     // Create a unique test database for each test run
     const testDbPath = path.join(process.cwd(), `test-${Date.now()}-${Math.random().toString(36)}.db`);
     testDb = new Database(testDbPath);
-    
+
     // Enable foreign keys and WAL mode
     testDb.pragma('journal_mode = WAL');
     testDb.pragma('foreign_keys = ON');
-    
+
     // Create the same tables as the main database
     testDb.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        is_admin INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now')),
+        reset_token TEXT,
+        reset_token_expires TEXT
+      );
+
       CREATE TABLE IF NOT EXISTS watches (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id),
         brand TEXT NOT NULL,
         model TEXT NOT NULL,
         reference TEXT,
@@ -33,16 +60,19 @@ export function getTestDb() {
 
       CREATE TABLE IF NOT EXISTS wear_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id),
         watch_id INTEGER NOT NULL,
-        date TEXT NOT NULL UNIQUE,
+        date TEXT NOT NULL,
         image_url TEXT,
         notes TEXT,
         created_at TEXT DEFAULT (datetime('now')),
-        FOREIGN KEY (watch_id) REFERENCES watches(id)
+        FOREIGN KEY (watch_id) REFERENCES watches(id),
+        UNIQUE(user_id, date)
       );
 
       CREATE TABLE IF NOT EXISTS wishlist (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id),
         brand TEXT NOT NULL,
         model TEXT NOT NULL,
         reference TEXT,
@@ -64,7 +94,20 @@ export function getTestDb() {
         recorded_at TEXT DEFAULT (datetime('now')),
         FOREIGN KEY (wishlist_id) REFERENCES wishlist(id) ON DELETE CASCADE
       );
+
+      CREATE TABLE IF NOT EXISTS feedback (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id),
+        email TEXT,
+        message TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
     `);
+
+    // Seed the test user so auth works in tests
+    testDb.prepare(
+      `INSERT OR IGNORE INTO users (id, email, password_hash, is_admin) VALUES (?, ?, ?, ?)`
+    ).run(TEST_USER_ID, TEST_USER_EMAIL, 'test-hash-not-for-login', 1);
   }
   return testDb;
 }
@@ -72,11 +115,16 @@ export function getTestDb() {
 export function resetTestDb() {
   if (testDb) {
     // Clear all data (order matters due to foreign keys)
+    testDb.exec('DELETE FROM feedback');
     testDb.exec('DELETE FROM price_history');
     testDb.exec('DELETE FROM wear_log');
     testDb.exec('DELETE FROM wishlist');
     testDb.exec('DELETE FROM watches');
     testDb.exec('DELETE FROM sqlite_sequence'); // Reset auto-increment
+    // Re-seed test user
+    testDb.prepare(
+      `INSERT OR IGNORE INTO users (id, email, password_hash, is_admin) VALUES (?, ?, ?, ?)`
+    ).run(TEST_USER_ID, TEST_USER_EMAIL, 'test-hash-not-for-login', 1);
   }
 }
 
@@ -95,18 +143,18 @@ export function closeTestDb() {
 // Seed test data function
 export function seedTestData() {
   const db = getTestDb();
-  
-  // Insert test watches
-  const watchInsert = db.prepare('INSERT INTO watches (brand, model, reference) VALUES (?, ?, ?)');
-  const watch1 = watchInsert.run('Grand Seiko', 'SBGW289', 'SBGW289');
-  const watch2 = watchInsert.run('Rolex', 'Submariner', '116610LN');
-  const watch3 = watchInsert.run('Omega', 'Speedmaster', '311.30.42.30.01.005');
-  
-  // Insert test wear logs
-  const wearInsert = db.prepare('INSERT INTO wear_log (watch_id, date, notes) VALUES (?, ?, ?)');
-  wearInsert.run(watch1.lastInsertRowid, '2026-02-08', 'Test log 1');
-  wearInsert.run(watch2.lastInsertRowid, '2026-02-07', 'Test log 2');
-  
+
+  // Insert test watches with user_id
+  const watchInsert = db.prepare('INSERT INTO watches (user_id, brand, model, reference) VALUES (?, ?, ?, ?)');
+  const watch1 = watchInsert.run(TEST_USER_ID, 'Grand Seiko', 'SBGW289', 'SBGW289');
+  const watch2 = watchInsert.run(TEST_USER_ID, 'Rolex', 'Submariner', '116610LN');
+  const watch3 = watchInsert.run(TEST_USER_ID, 'Omega', 'Speedmaster', '311.30.42.30.01.005');
+
+  // Insert test wear logs with user_id
+  const wearInsert = db.prepare('INSERT INTO wear_log (user_id, watch_id, date, notes) VALUES (?, ?, ?, ?)');
+  wearInsert.run(TEST_USER_ID, watch1.lastInsertRowid, '2026-02-08', 'Test log 1');
+  wearInsert.run(TEST_USER_ID, watch2.lastInsertRowid, '2026-02-07', 'Test log 2');
+
   return {
     watch1Id: watch1.lastInsertRowid,
     watch2Id: watch2.lastInsertRowid,
@@ -116,6 +164,7 @@ export function seedTestData() {
 
 export interface Watch {
   id: number;
+  user_id: number | null;
   brand: string;
   model: string;
   reference: string | null;
@@ -131,6 +180,7 @@ export interface Watch {
 
 export interface WearLog {
   id: number;
+  user_id: number | null;
   watch_id: number;
   date: string;
   image_url: string | null;

@@ -4,12 +4,17 @@
 
 import { NextRequest } from 'next/server';
 import { GET, POST } from '@/app/api/watches/route';
-import { getTestDb, resetTestDb, closeTestDb, seedTestData } from '@/lib/test-db';
+import { getTestDb, resetTestDb, closeTestDb, seedTestData, getAuthHeaders } from '@/lib/test-db';
 
 // Mock the main db module to use test database
 jest.mock('../../lib/db', () => {
   return require('../../lib/test-db').getTestDb();
 });
+
+function makeReq(url: string, options?: RequestInit) {
+  const headers = { 'Content-Type': 'application/json', ...getAuthHeaders(), ...(options?.headers as Record<string, string> || {}) };
+  return new NextRequest(url, { ...options, headers });
+}
 
 describe('/api/watches', () => {
   beforeEach(() => {
@@ -22,9 +27,9 @@ describe('/api/watches', () => {
 
   describe('GET /api/watches', () => {
     it('should return empty array when no watches exist', async () => {
-      const response = await GET();
+      const response = await GET(makeReq('http://localhost/api/watches'));
       const data = await response.json();
-      
+
       expect(response.status).toBe(200);
       expect(Array.isArray(data)).toBe(true);
       expect(data).toHaveLength(0);
@@ -32,14 +37,14 @@ describe('/api/watches', () => {
 
     it('should return all watches sorted by brand and model', async () => {
       seedTestData();
-      
-      const response = await GET();
+
+      const response = await GET(makeReq('http://localhost/api/watches'));
       const data = await response.json();
-      
+
       expect(response.status).toBe(200);
       expect(Array.isArray(data)).toBe(true);
       expect(data).toHaveLength(3);
-      
+
       // Should be sorted by brand, model
       expect(data[0].brand).toBe('Grand Seiko');
       expect(data[0].model).toBe('SBGW289');
@@ -51,10 +56,10 @@ describe('/api/watches', () => {
 
     it('should include all watch properties', async () => {
       seedTestData();
-      
-      const response = await GET();
+
+      const response = await GET(makeReq('http://localhost/api/watches'));
       const data = await response.json();
-      
+
       const watch = data[0];
       expect(watch).toHaveProperty('id');
       expect(watch).toHaveProperty('brand');
@@ -73,9 +78,8 @@ describe('/api/watches', () => {
         reference: 'SKX007K1'
       };
 
-      const request = new NextRequest('http://localhost/api/watches', {
+      const request = makeReq('http://localhost/api/watches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 
@@ -106,9 +110,8 @@ describe('/api/watches', () => {
         model: 'F-91W'
       };
 
-      const request = new NextRequest('http://localhost/api/watches', {
+      const request = makeReq('http://localhost/api/watches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 
@@ -131,9 +134,8 @@ describe('/api/watches', () => {
         reference: ''
       };
 
-      const request = new NextRequest('http://localhost/api/watches', {
+      const request = makeReq('http://localhost/api/watches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 
@@ -146,14 +148,12 @@ describe('/api/watches', () => {
 
     it('should return existing watch instead of creating a duplicate', async () => {
       const requestBody = { brand: 'Seiko', model: 'SKX007', reference: 'SKX007K1' };
-      const request1 = new NextRequest('http://localhost/api/watches', {
+      const request1 = makeReq('http://localhost/api/watches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
-      const request2 = new NextRequest('http://localhost/api/watches', {
+      const request2 = makeReq('http://localhost/api/watches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 
@@ -171,9 +171,8 @@ describe('/api/watches', () => {
 
     it('should return existing watch instead of duplicating when reference is null', async () => {
       const body = { brand: 'Casio', model: 'F-91W' }; // no reference → null
-      const make = () => new NextRequest('http://localhost/api/watches', {
+      const make = () => makeReq('http://localhost/api/watches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
 
@@ -188,14 +187,12 @@ describe('/api/watches', () => {
     });
 
     it('should treat watches with different references as distinct', async () => {
-      const req1 = new NextRequest('http://localhost/api/watches', {
+      const req1 = makeReq('http://localhost/api/watches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brand: 'Seiko', model: 'SKX007', reference: 'SKX007K1' })
       });
-      const req2 = new NextRequest('http://localhost/api/watches', {
+      const req2 = makeReq('http://localhost/api/watches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brand: 'Seiko', model: 'SKX007', reference: 'SKX007K2' })
       });
 
@@ -207,9 +204,8 @@ describe('/api/watches', () => {
 
     it('should require brand and model', async () => {
       // Test missing brand
-      const requestWithoutBrand = new NextRequest('http://localhost/api/watches', {
+      const requestWithoutBrand = makeReq('http://localhost/api/watches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'Test Model' })
       });
 
@@ -217,23 +213,22 @@ describe('/api/watches', () => {
       let errorCaught = false;
       try {
         await POST(requestWithoutBrand);
-      } catch (err) {
+      } catch (err: any) {
         errorCaught = true;
         expect(err.message).toContain('NOT NULL constraint failed');
       }
       expect(errorCaught).toBe(true);
 
       // Test missing model
-      const requestWithoutModel = new NextRequest('http://localhost/api/watches', {
+      const requestWithoutModel = makeReq('http://localhost/api/watches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brand: 'Test Brand' })
       });
 
       errorCaught = false;
       try {
         await POST(requestWithoutModel);
-      } catch (err) {
+      } catch (err: any) {
         errorCaught = true;
         expect(err.message).toContain('NOT NULL constraint failed');
       }

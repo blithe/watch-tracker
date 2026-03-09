@@ -1,36 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionToken, verifyToken, COOKIE_NAME } from '@/lib/auth';
+import { verifySessionToken, COOKIE_NAME } from '@/lib/auth';
 
-export async function middleware(req: NextRequest) {
-  const password = process.env.AUTH_PASSWORD;
-  // No password configured = no auth required
-  if (!password) return NextResponse.next();
+// Paths that don't require authentication
+const PUBLIC_PATHS = new Set([
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/feedback',
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
+  '/api/feedback',
+  '/api/db-init',
+]);
 
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Allow login page and login API
-  if (pathname === '/login' || pathname === '/api/auth/login') {
+  if (PUBLIC_PATHS.has(pathname)) {
     return NextResponse.next();
   }
 
-  // Allow db-init route (needed for first deploy)
-  if (pathname === '/api/db-init') {
-    return NextResponse.next();
-  }
+  const token = req.cookies.get(COOKIE_NAME)?.value;
+  const userId = token ? verifySessionToken(token) : null;
 
-  // Check session cookie
-  const session = req.cookies.get(COOKIE_NAME);
-  if (!session) {
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    return NextResponse.redirect(new URL('/login', req.url));
-  }
-
-  // Verify token matches using shared auth logic
-  const expected = await getSessionToken(password);
-
-  if (!verifyToken(session.value, expected)) {
+  if (!userId) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

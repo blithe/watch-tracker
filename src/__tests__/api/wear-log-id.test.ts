@@ -4,7 +4,7 @@
 
 import { NextRequest } from 'next/server';
 import { GET, PATCH, DELETE } from '@/app/api/wear-log/[id]/route';
-import { getTestDb, resetTestDb, closeTestDb, seedTestData } from '@/lib/test-db';
+import { getTestDb, resetTestDb, closeTestDb, seedTestData, getAuthHeaders } from '@/lib/test-db';
 
 jest.mock('../../lib/db', () => {
   return require('../../lib/test-db').getTestDb();
@@ -12,6 +12,11 @@ jest.mock('../../lib/db', () => {
 
 function makeParams(id: string) {
   return { params: Promise.resolve({ id }) };
+}
+
+function makeReq(url: string, options?: RequestInit) {
+  const headers = { 'Content-Type': 'application/json', ...getAuthHeaders(), ...(options?.headers as Record<string, string> || {}) };
+  return new NextRequest(url, { ...options, headers });
 }
 
 describe('/api/wear-log/[id]', () => {
@@ -29,7 +34,7 @@ describe('/api/wear-log/[id]', () => {
       const db = getTestDb();
       const log = db.prepare('SELECT * FROM wear_log LIMIT 1').get() as any;
 
-      const req = new NextRequest(`http://localhost/api/wear-log/${log.id}`);
+      const req = makeReq(`http://localhost/api/wear-log/${log.id}`);
       const response = await GET(req, makeParams(String(log.id)));
       const data = await response.json();
 
@@ -41,7 +46,7 @@ describe('/api/wear-log/[id]', () => {
     });
 
     it('should return 404 for non-existent id', async () => {
-      const req = new NextRequest('http://localhost/api/wear-log/99999');
+      const req = makeReq('http://localhost/api/wear-log/99999');
       const response = await GET(req, makeParams('99999'));
 
       expect(response.status).toBe(404);
@@ -53,9 +58,8 @@ describe('/api/wear-log/[id]', () => {
       const db = getTestDb();
       const log = db.prepare('SELECT * FROM wear_log LIMIT 1').get() as any;
 
-      const req = new NextRequest(`http://localhost/api/wear-log/${log.id}`, {
+      const req = makeReq(`http://localhost/api/wear-log/${log.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: 'Updated notes' }),
       });
       const response = await PATCH(req, makeParams(String(log.id)));
@@ -72,9 +76,8 @@ describe('/api/wear-log/[id]', () => {
       const db = getTestDb();
       const log = db.prepare('SELECT * FROM wear_log LIMIT 1').get() as any;
 
-      const req = new NextRequest(`http://localhost/api/wear-log/${log.id}`, {
+      const req = makeReq(`http://localhost/api/wear-log/${log.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image_url: '/uploads/new-photo.jpg' }),
       });
       const response = await PATCH(req, makeParams(String(log.id)));
@@ -88,9 +91,8 @@ describe('/api/wear-log/[id]', () => {
       const db = getTestDb();
       const log = db.prepare('SELECT * FROM wear_log LIMIT 1').get() as any;
 
-      const req = new NextRequest(`http://localhost/api/wear-log/${log.id}`, {
+      const req = makeReq(`http://localhost/api/wear-log/${log.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image_url: '' }),
       });
       const response = await PATCH(req, makeParams(String(log.id)));
@@ -106,9 +108,8 @@ describe('/api/wear-log/[id]', () => {
       const watch2Id = watches[1].id;
       const log = db.prepare('SELECT * FROM wear_log LIMIT 1').get() as any;
 
-      const req = new NextRequest(`http://localhost/api/wear-log/${log.id}`, {
+      const req = makeReq(`http://localhost/api/wear-log/${log.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ watch_id: watch2Id }),
       });
       const response = await PATCH(req, makeParams(String(log.id)));
@@ -122,9 +123,8 @@ describe('/api/wear-log/[id]', () => {
       const db = getTestDb();
       const log = db.prepare('SELECT * FROM wear_log LIMIT 1').get() as any;
 
-      const req = new NextRequest(`http://localhost/api/wear-log/${log.id}`, {
+      const req = makeReq(`http://localhost/api/wear-log/${log.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invalid_field: 'value' }),
       });
       const response = await PATCH(req, makeParams(String(log.id)));
@@ -133,9 +133,8 @@ describe('/api/wear-log/[id]', () => {
     });
 
     it('should return 404 for non-existent id', async () => {
-      const req = new NextRequest('http://localhost/api/wear-log/99999', {
+      const req = makeReq('http://localhost/api/wear-log/99999', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: 'test' }),
       });
       const response = await PATCH(req, makeParams('99999'));
@@ -149,7 +148,7 @@ describe('/api/wear-log/[id]', () => {
       const db = getTestDb();
       const log = db.prepare('SELECT * FROM wear_log LIMIT 1').get() as any;
 
-      const req = new NextRequest(`http://localhost/api/wear-log/${log.id}`, { method: 'DELETE' });
+      const req = makeReq(`http://localhost/api/wear-log/${log.id}`, { method: 'DELETE' });
       const response = await DELETE(req, makeParams(String(log.id)));
       const data = await response.json();
 
@@ -161,7 +160,7 @@ describe('/api/wear-log/[id]', () => {
     });
 
     it('should return 404 for non-existent id', async () => {
-      const req = new NextRequest('http://localhost/api/wear-log/99999', { method: 'DELETE' });
+      const req = makeReq('http://localhost/api/wear-log/99999', { method: 'DELETE' });
       const response = await DELETE(req, makeParams('99999'));
 
       expect(response.status).toBe(404);

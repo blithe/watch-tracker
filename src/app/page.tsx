@@ -1,6 +1,8 @@
-import db, { WearLogWithWatch } from '@/lib/db';
+import db from '@/lib/db';
 import Link from 'next/link';
 import CalendarCell from './CalendarCell';
+import { getSessionUserId } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +15,9 @@ function getFirstDayOfWeek(year: number, month: number) {
 }
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ month?: string; year?: string }> }) {
+  const userId = await getSessionUserId();
+  if (!userId) redirect('/login');
+
   const { month: monthParam, year: yearParam } = await searchParams;
   const now = new Date();
   const year = yearParam ? parseInt(yearParam) : now.getFullYear();
@@ -26,9 +31,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     SELECT w.*, wl.id as wl_id, wl.date, wl.image_url as log_image, wl.notes
     FROM wear_log wl
     JOIN watches w ON w.id = wl.watch_id
-    WHERE wl.date LIKE ?
+    WHERE wl.date LIKE ? AND wl.user_id = ?
     ORDER BY wl.date
-  `).all(`${year}-${monthStr}-%`) as Array<{ id: number; brand: string; model: string; reference: string; image_url: string | null; date: string; log_image: string | null; notes: string | null }>;
+  `).all(`${year}-${monthStr}-%`, userId) as Array<{ id: number; brand: string; model: string; reference: string; image_url: string | null; date: string; log_image: string | null; notes: string | null }>;
 
   const logMap = new Map<number, typeof logs[0]>();
   for (const log of logs) {

@@ -7,7 +7,7 @@ import { POST as uploadImage } from '@/app/api/upload/route';
 import { POST as createWatch } from '@/app/api/watches/route';
 import { PATCH as updateWatch } from '@/app/api/watches/[id]/route';
 import { POST as logWear } from '@/app/api/wear-log/route';
-import { getTestDb, resetTestDb, closeTestDb } from '@/lib/test-db';
+import { getTestDb, resetTestDb, closeTestDb, getAuthHeaders } from '@/lib/test-db';
 import { put } from '@vercel/blob';
 
 // Mock the main db module to use test database
@@ -21,6 +21,11 @@ jest.mock('@vercel/blob', () => ({
 }));
 
 const mockPut = put as jest.MockedFunction<typeof put>;
+
+function makeReq(url: string, options?: RequestInit) {
+  const headers = { 'Content-Type': 'application/json', ...getAuthHeaders(), ...(options?.headers as Record<string, string> || {}) };
+  return new NextRequest(url, { ...options, headers });
+}
 
 describe('Integration: Image Upload Flow', () => {
   beforeEach(() => {
@@ -49,25 +54,16 @@ describe('Integration: Image Upload Flow', () => {
     const db = getTestDb();
 
     // Step 1: Upload an image via POST /api/upload
-    
-    // Create a mock file
-    const mockFileContent = 'fake-image-content';
-    const mockFile = new File([mockFileContent], 'test-watch.jpg', { type: 'image/jpeg' });
-    
-    // Create FormData
+    const mockFile = new File(['fake-image-content'], 'test-watch.jpg', { type: 'image/jpeg' });
     const formData = new FormData();
     formData.append('file', mockFile);
 
-    const uploadRequest = new NextRequest('http://localhost/api/upload', {
-      method: 'POST',
-      body: formData
-    });
-
+    const uploadRequest = new NextRequest('http://localhost/api/upload', { method: 'POST', body: formData });
     const uploadResponse = await uploadImage(uploadRequest);
     expect(uploadResponse.status).toBe(200);
 
     const uploadResult = await uploadResponse.json();
-    
+
     // Step 2: Verify returned URL is valid
     expect(uploadResult).toHaveProperty('url');
     expect(uploadResult.url).toMatch(/^https:\/\/blob\.vercel-storage\.com\/\d+-[a-f0-9]{12}\.jpg$/);
@@ -79,36 +75,21 @@ describe('Integration: Image Upload Flow', () => {
     expect(options).toEqual({ access: 'public' });
 
     // Step 3: Create a watch first
-    const watchData = {
-      brand: 'Omega',
-      model: 'Speedmaster',
-      reference: '311.30.42.30.01.005'
-    };
-
-    const createWatchRequest = new NextRequest('http://localhost/api/watches', {
+    const createdWatch = await (await createWatch(makeReq('http://localhost/api/watches', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(watchData)
-    });
-
-    const createWatchResponse = await createWatch(createWatchRequest);
-    const createdWatch = await createWatchResponse.json();
+      body: JSON.stringify({ brand: 'Omega', model: 'Speedmaster', reference: '311.30.42.30.01.005' })
+    }))).json();
 
     // Step 4: Use that URL when logging a wear entry
-    const wearData = {
-      watch_id: createdWatch.id,
-      date: '2026-02-20',
-      image_url: uploadResult.url,
-      notes: 'Great photo of the Speedmaster'
-    };
-
-    const logWearRequest = new NextRequest('http://localhost/api/wear-log', {
+    const logWearResponse = await logWear(makeReq('http://localhost/api/wear-log', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(wearData)
-    });
-
-    const logWearResponse = await logWear(logWearRequest);
+      body: JSON.stringify({
+        watch_id: createdWatch.id,
+        date: '2026-02-20',
+        image_url: uploadResult.url,
+        notes: 'Great photo of the Speedmaster'
+      })
+    }));
     expect(logWearResponse.status).toBe(200);
 
     // Step 5: Verify the day detail query returns the image URL
@@ -162,11 +143,7 @@ describe('Integration: Image Upload Flow', () => {
       const formData = new FormData();
       formData.append('file', mockFile);
 
-      const uploadRequest = new NextRequest('http://localhost/api/upload', {
-        method: 'POST',
-        body: formData
-      });
-
+      const uploadRequest = new NextRequest('http://localhost/api/upload', { method: 'POST', body: formData });
       const uploadResponse = await uploadImage(uploadRequest);
       expect(uploadResponse.status).toBe(200);
 
@@ -180,14 +157,8 @@ describe('Integration: Image Upload Flow', () => {
   });
 
   it('should return 400 for missing file', async () => {
-    // Create FormData without file
     const formData = new FormData();
-
-    const uploadRequest = new NextRequest('http://localhost/api/upload', {
-      method: 'POST',
-      body: formData
-    });
-
+    const uploadRequest = new NextRequest('http://localhost/api/upload', { method: 'POST', body: formData });
     const uploadResponse = await uploadImage(uploadRequest);
     expect(uploadResponse.status).toBe(400);
 
@@ -209,11 +180,7 @@ describe('Integration: Image Upload Flow', () => {
       const formData = new FormData();
       formData.append('file', mockFile);
 
-      const uploadRequest = new NextRequest('http://localhost/api/upload', {
-        method: 'POST',
-        body: formData
-      });
-
+      const uploadRequest = new NextRequest('http://localhost/api/upload', { method: 'POST', body: formData });
       const uploadResponse = await uploadImage(uploadRequest);
       expect(uploadResponse.status).toBe(200);
 
@@ -238,72 +205,38 @@ describe('Integration: Image Upload Flow', () => {
     const db = getTestDb();
 
     // Upload a watch image
-    const watchImageFile = new File(['watch-image'], 'watch.jpg', { type: 'image/jpeg' });
     const watchImageFormData = new FormData();
-    watchImageFormData.append('file', watchImageFile);
-
-    const watchImageRequest = new NextRequest('http://localhost/api/upload', {
-      method: 'POST',
-      body: watchImageFormData
-    });
-
-    const watchImageResponse = await uploadImage(watchImageRequest);
-    const watchImageResult = await watchImageResponse.json();
+    watchImageFormData.append('file', new File(['watch-image'], 'watch.jpg', { type: 'image/jpeg' }));
+    const watchImageResult = await (await uploadImage(new NextRequest('http://localhost/api/upload', { method: 'POST', body: watchImageFormData }))).json();
 
     // Upload a wear-specific image
     mockPut.mockClear();
-    const wearImageFile = new File(['wear-image'], 'wear.jpg', { type: 'image/jpeg' });
     const wearImageFormData = new FormData();
-    wearImageFormData.append('file', wearImageFile);
+    wearImageFormData.append('file', new File(['wear-image'], 'wear.jpg', { type: 'image/jpeg' }));
+    const wearImageResult = await (await uploadImage(new NextRequest('http://localhost/api/upload', { method: 'POST', body: wearImageFormData }))).json();
 
-    const wearImageRequest = new NextRequest('http://localhost/api/upload', {
+    // Create watch
+    const createdWatch = await (await createWatch(makeReq('http://localhost/api/watches', {
       method: 'POST',
-      body: wearImageFormData
-    });
-
-    const wearImageResponse = await uploadImage(wearImageRequest);
-    const wearImageResult = await wearImageResponse.json();
-
-    // Create watch first
-    const watchData = {
-      brand: 'Rolex',
-      model: 'Submariner',
-      reference: '116610LN'
-    };
-
-    const createWatchRequest = new NextRequest('http://localhost/api/watches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(watchData)
-    });
-
-    const createWatchResponse = await createWatch(createWatchRequest);
-    const createdWatch = await createWatchResponse.json();
+      body: JSON.stringify({ brand: 'Rolex', model: 'Submariner', reference: '116610LN' })
+    }))).json();
 
     // Update watch with the watch image using PATCH
-    const updateWatchRequest = new NextRequest(`http://localhost/api/watches/${createdWatch.id}`, {
+    await updateWatch(makeReq(`http://localhost/api/watches/${createdWatch.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image_url: watchImageResult.url })
-    });
-
-    await updateWatch(updateWatchRequest, { params: { id: createdWatch.id.toString() }});
+    }), { params: Promise.resolve({ id: createdWatch.id.toString() }) });
 
     // Log wear with the wear-specific image
-    const wearData = {
-      watch_id: createdWatch.id,
-      date: '2026-02-21',
-      image_url: wearImageResult.url,
-      notes: 'Wear photo on a sunny day'
-    };
-
-    const logWearRequest = new NextRequest('http://localhost/api/wear-log', {
+    const logWearResponse = await logWear(makeReq('http://localhost/api/wear-log', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(wearData)
-    });
-
-    const logWearResponse = await logWear(logWearRequest);
+      body: JSON.stringify({
+        watch_id: createdWatch.id,
+        date: '2026-02-21',
+        image_url: wearImageResult.url,
+        notes: 'Wear photo on a sunny day'
+      })
+    }));
     expect(logWearResponse.status).toBe(200);
 
     // Verify day detail query returns both images correctly
@@ -343,35 +276,15 @@ describe('Integration: Image Upload Flow', () => {
   it('should handle wear logging without images gracefully', async () => {
     const db = getTestDb();
 
-    // Create watch without image
-    const watchData = {
-      brand: 'Casio',
-      model: 'F-91W'
-    };
-
-    const createWatchRequest = new NextRequest('http://localhost/api/watches', {
+    const createdWatch = await (await createWatch(makeReq('http://localhost/api/watches', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(watchData)
-    });
+      body: JSON.stringify({ brand: 'Casio', model: 'F-91W' })
+    }))).json();
 
-    const createWatchResponse = await createWatch(createWatchRequest);
-    const createdWatch = await createWatchResponse.json();
-
-    // Log wear without image
-    const wearData = {
-      watch_id: createdWatch.id,
-      date: '2026-02-22',
-      notes: 'No photo today'
-    };
-
-    const logWearRequest = new NextRequest('http://localhost/api/wear-log', {
+    const logWearResponse = await logWear(makeReq('http://localhost/api/wear-log', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(wearData)
-    });
-
-    const logWearResponse = await logWear(logWearRequest);
+      body: JSON.stringify({ watch_id: createdWatch.id, date: '2026-02-22', notes: 'No photo today' })
+    }));
     expect(logWearResponse.status).toBe(200);
 
     // Verify day detail query handles null images
@@ -400,7 +313,7 @@ describe('Integration: Image Upload Flow', () => {
       ORDER BY wl.date
     `).all('2026-02-%');
 
-    const noImageLog = calendarLogs.find(log => log.date === '2026-02-22');
+    const noImageLog = calendarLogs.find((log: any) => log.date === '2026-02-22');
     expect(noImageLog).toMatchObject({
       log_image: null,
       image_url: null, // watch image_url
@@ -413,40 +326,25 @@ describe('Integration: Image Upload Flow', () => {
     const db = getTestDb();
 
     // Upload image
-    const mockFile = new File(['test-content'], 'persistent.jpg', { type: 'image/jpeg' });
     const formData = new FormData();
-    formData.append('file', mockFile);
-
-    const uploadRequest = new NextRequest('http://localhost/api/upload', {
-      method: 'POST',
-      body: formData
-    });
-
-    const uploadResponse = await uploadImage(uploadRequest);
-    const uploadResult = await uploadResponse.json();
+    formData.append('file', new File(['test-content'], 'persistent.jpg', { type: 'image/jpeg' }));
+    const uploadResult = await (await uploadImage(new NextRequest('http://localhost/api/upload', { method: 'POST', body: formData }))).json();
 
     // Create watch and log wear with image
-    const watchRequest = new NextRequest('http://localhost/api/watches', {
+    const watch = await (await createWatch(makeReq('http://localhost/api/watches', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ brand: 'Persistent', model: 'Test' })
-    });
+    }))).json();
 
-    const watchResponse = await createWatch(watchRequest);
-    const watch = await watchResponse.json();
-
-    const wearRequest = new NextRequest('http://localhost/api/wear-log', {
+    await logWear(makeReq('http://localhost/api/wear-log', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         watch_id: watch.id,
         date: '2026-02-23',
         image_url: uploadResult.url,
         notes: 'Image persistence test'
       })
-    });
-
-    await logWear(wearRequest);
+    }));
 
     // Test multiple queries to ensure image URL is consistent
     const queries = [
@@ -459,7 +357,7 @@ describe('Integration: Image Upload Flow', () => {
         ORDER BY wl.date
       `).all('2026-02-%'),
 
-      // Day detail query  
+      // Day detail query
       () => db.prepare(`
         SELECT wl.*, w.brand, w.model, w.reference, w.image_url as watch_image
         FROM wear_log wl
@@ -474,7 +372,7 @@ describe('Integration: Image Upload Flow', () => {
     // All queries should return the same image URL
     for (const query of queries) {
       const result = query();
-      
+
       if (Array.isArray(result)) {
         expect(result[0].log_image).toBe(uploadResult.url);
       } else if (result.image_url !== undefined) {

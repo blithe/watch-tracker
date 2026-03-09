@@ -4,12 +4,17 @@
 
 import { NextRequest } from 'next/server';
 import { GET, POST } from '@/app/api/wear-log/route';
-import { getTestDb, resetTestDb, closeTestDb, seedTestData } from '@/lib/test-db';
+import { getTestDb, resetTestDb, closeTestDb, seedTestData, getAuthHeaders } from '@/lib/test-db';
 
 // Mock the main db module to use test database
 jest.mock('../../lib/db', () => {
   return require('../../lib/test-db').getTestDb();
 });
+
+function makeReq(url: string, options?: RequestInit) {
+  const headers = { 'Content-Type': 'application/json', ...getAuthHeaders(), ...(options?.headers as Record<string, string> || {}) };
+  return new NextRequest(url, { ...options, headers });
+}
 
 describe('/api/wear-log', () => {
   beforeEach(() => {
@@ -24,7 +29,7 @@ describe('/api/wear-log', () => {
     it('should return log for a specific date', async () => {
       const { watch1Id } = seedTestData();
 
-      const req = new NextRequest('http://localhost/api/wear-log?date=2026-02-08');
+      const req = makeReq('http://localhost/api/wear-log?date=2026-02-08');
       const response = await GET(req);
       const data = await response.json();
 
@@ -40,7 +45,7 @@ describe('/api/wear-log', () => {
     it('should return null for a date with no log', async () => {
       seedTestData();
 
-      const req = new NextRequest('http://localhost/api/wear-log?date=2000-01-01');
+      const req = makeReq('http://localhost/api/wear-log?date=2000-01-01');
       const response = await GET(req);
       const data = await response.json();
 
@@ -49,9 +54,9 @@ describe('/api/wear-log', () => {
     });
 
     it('should return logs for a given month', async () => {
-      const { watch1Id } = seedTestData();
+      seedTestData();
 
-      const req = new NextRequest('http://localhost/api/wear-log?month=2026-02');
+      const req = makeReq('http://localhost/api/wear-log?month=2026-02');
       const response = await GET(req);
       const data = await response.json();
 
@@ -65,7 +70,7 @@ describe('/api/wear-log', () => {
     it('should return empty array for month with no logs', async () => {
       seedTestData();
 
-      const req = new NextRequest('http://localhost/api/wear-log?month=2000-01');
+      const req = makeReq('http://localhost/api/wear-log?month=2000-01');
       const response = await GET(req);
       const data = await response.json();
 
@@ -76,7 +81,7 @@ describe('/api/wear-log', () => {
     it('should return all logs when no params provided', async () => {
       seedTestData();
 
-      const req = new NextRequest('http://localhost/api/wear-log');
+      const req = makeReq('http://localhost/api/wear-log');
       const response = await GET(req);
       const data = await response.json();
 
@@ -89,16 +94,15 @@ describe('/api/wear-log', () => {
   describe('POST /api/wear-log', () => {
     it('should create a new wear log entry', async () => {
       const { watch1Id } = seedTestData();
-      
+
       const requestBody = {
         watch_id: watch1Id,
         date: '2026-02-09',
         notes: 'Great watch today!'
       };
 
-      const request = new NextRequest('http://localhost/api/wear-log', {
+      const request = makeReq('http://localhost/api/wear-log', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 
@@ -121,7 +125,7 @@ describe('/api/wear-log', () => {
 
     it('should create a wear log with image_url', async () => {
       const { watch1Id } = seedTestData();
-      
+
       const requestBody = {
         watch_id: watch1Id,
         date: '2026-02-10',
@@ -129,9 +133,8 @@ describe('/api/wear-log', () => {
         notes: 'With photo!'
       };
 
-      const request = new NextRequest('http://localhost/api/wear-log', {
+      const request = makeReq('http://localhost/api/wear-log', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 
@@ -149,15 +152,14 @@ describe('/api/wear-log', () => {
 
     it('should handle missing optional fields', async () => {
       const { watch1Id } = seedTestData();
-      
+
       const requestBody = {
         watch_id: watch1Id,
         date: '2026-02-11'
       };
 
-      const request = new NextRequest('http://localhost/api/wear-log', {
+      const request = makeReq('http://localhost/api/wear-log', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 
@@ -176,7 +178,7 @@ describe('/api/wear-log', () => {
 
     it('should handle empty strings as null', async () => {
       const { watch1Id } = seedTestData();
-      
+
       const requestBody = {
         watch_id: watch1Id,
         date: '2026-02-12',
@@ -184,9 +186,8 @@ describe('/api/wear-log', () => {
         notes: ''
       };
 
-      const request = new NextRequest('http://localhost/api/wear-log', {
+      const request = makeReq('http://localhost/api/wear-log', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 
@@ -204,15 +205,14 @@ describe('/api/wear-log', () => {
 
     it('should return 400 for duplicate date', async () => {
       const { watch1Id } = seedTestData();
-      
+
       const requestBody = {
         watch_id: watch1Id,
         date: '2026-02-08' // This date already exists from seedTestData
       };
 
-      const request = new NextRequest('http://localhost/api/wear-log', {
+      const request = makeReq('http://localhost/api/wear-log', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 
@@ -224,21 +224,22 @@ describe('/api/wear-log', () => {
     });
 
     it('should return 500 for invalid watch_id (foreign key constraint)', async () => {
+      seedTestData();
+
       const requestBody = {
         watch_id: 99999, // Non-existent watch ID
         date: '2026-02-13'
       };
 
-      const request = new NextRequest('http://localhost/api/wear-log', {
+      const request = makeReq('http://localhost/api/wear-log', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 
       const response = await POST(request);
 
       expect(response.status).toBe(500);
-      
+
       const data = await response.json();
       expect(data).toHaveProperty('error');
       expect(data.error).toContain('FOREIGN KEY constraint failed');
@@ -247,36 +248,34 @@ describe('/api/wear-log', () => {
     it('should enforce foreign key constraint', async () => {
       // Try to create a wear log without any watches in the database
       const requestBody = {
-        watch_id: 1,
+        watch_id: 99999,
         date: '2026-02-14'
       };
 
-      const request = new NextRequest('http://localhost/api/wear-log', {
+      const request = makeReq('http://localhost/api/wear-log', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 
       const response = await POST(request);
 
       expect(response.status).toBe(500);
-      
+
       const data = await response.json();
       expect(data.error).toContain('FOREIGN KEY constraint failed');
     });
 
     it('should enforce unique date constraint', async () => {
       const { watch1Id, watch2Id } = seedTestData();
-      
+
       // Try to log a different watch on the same date
       const requestBody = {
         watch_id: watch2Id,
         date: '2026-02-08' // Same date as existing entry
       };
 
-      const request = new NextRequest('http://localhost/api/wear-log', {
+      const request = makeReq('http://localhost/api/wear-log', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 

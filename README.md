@@ -15,7 +15,9 @@ Built with Next.js 16, TypeScript, SQLite (local) / Vercel Postgres (production)
 - **Wishlist & price monitoring** — Track watches you want, log prices from different sources, mark as purchased
 - **Stats dashboard** — Most-worn watches, streak tracking, collection overview
 - **Image uploads** — Vercel Blob in production, local file storage in development
-- **Password auth** — Optional single-password protection via `AUTH_PASSWORD` env var
+- **Multi-user auth** — Email/password login, registration, password reset via email
+- **Feedback** — Public submission form; admin-only feedback review
+- **Data isolation** — Each user sees only their own watches, wear logs, and wishlist
 - **Dark mode** — Tailwind dark theme throughout
 
 ## Tech Stack
@@ -26,6 +28,8 @@ Built with Next.js 16, TypeScript, SQLite (local) / Vercel Postgres (production)
 | Language | TypeScript |
 | Database | SQLite ([better-sqlite3](https://github.com/WiseLibs/better-sqlite3)) locally, [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres) in production |
 | Image storage | Local `public/uploads/` in dev, [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) in production |
+| Auth | HMAC-SHA256 signed session tokens, bcryptjs password hashing |
+| Email | [Resend](https://resend.com/) for password reset emails |
 | Styling | [Tailwind CSS](https://tailwindcss.com/) |
 | Testing | [Jest](https://jestjs.io/) + [React Testing Library](https://testing-library.com/) |
 | Runtime | Node.js 18+ |
@@ -46,17 +50,18 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). You'll be redirected to `/login`. Register a new account to get started.
 
-The SQLite database (`watch-tracker.db`) is created automatically on first run with a seed entry.
+The SQLite database (`watch-tracker.db`) is created automatically on first run.
 
 ### Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `AUTH_PASSWORD` | No | If set, enables password protection. Leave unset for open access. |
+| `SESSION_SECRET` | Recommended | Secret for HMAC session token signing. Defaults to `dev-secret-change-in-production`. |
 | `POSTGRES_URL` | Production | Vercel Postgres connection string |
 | `BLOB_READ_WRITE_TOKEN` | Production | Vercel Blob token for image uploads |
+| `RESEND_API_KEY` | Optional | Resend API key for password reset emails |
 
 ### Build for Production
 
@@ -92,43 +97,54 @@ npx jest --watch
 watch-tracker/
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx                  # Calendar view (home)
-│   │   ├── layout.tsx                # Root layout + nav
-│   │   ├── globals.css               # Tailwind base styles
-│   │   ├── login/page.tsx            # Login page
-│   │   ├── log/page.tsx              # Log a new wear entry
-│   │   ├── day/[date]/page.tsx       # Day detail view
-│   │   ├── stats/page.tsx            # Stats dashboard
-│   │   ├── collection/              # Collection pages
-│   │   ├── wishlist/                # Wishlist pages
-│   │   │   ├── page.tsx             # Wishlist overview
-│   │   │   ├── add/page.tsx         # Add to wishlist
-│   │   │   └── [id]/page.tsx        # Price history detail
+│   │   ├── page.tsx                      # Calendar view (home)
+│   │   ├── layout.tsx                    # Root layout + nav
+│   │   ├── globals.css                   # Tailwind base styles
+│   │   ├── login/page.tsx                # Login page
+│   │   ├── register/page.tsx             # Registration page
+│   │   ├── forgot-password/page.tsx      # Password reset request
+│   │   ├── reset-password/page.tsx       # Password reset form
+│   │   ├── feedback/page.tsx             # Feedback submission (public)
+│   │   ├── admin/feedback/page.tsx       # Admin feedback viewer
+│   │   ├── log/page.tsx                  # Log a new wear entry
+│   │   ├── day/[date]/page.tsx           # Day detail view
+│   │   ├── stats/page.tsx                # Stats dashboard
+│   │   ├── collection/                   # Collection pages
+│   │   ├── wishlist/                     # Wishlist pages
+│   │   │   ├── page.tsx                  # Wishlist overview
+│   │   │   ├── add/page.tsx              # Add to wishlist
+│   │   │   └── [id]/page.tsx             # Price history detail
 │   │   └── api/
-│   │       ├── auth/login/route.ts  # Login endpoint
-│   │       ├── watches/route.ts     # CRUD for watch collection
-│   │       ├── wear-log/route.ts    # CRUD for wear log entries
-│   │       ├── upload/route.ts      # Image upload (Vercel Blob)
-│   │       ├── collection/route.ts  # Collection endpoints
-│   │       ├── db-init/route.ts     # First-deploy schema init (Postgres)
-│   │       └── wishlist/            # Wishlist + price history endpoints
+│   │       ├── auth/login/route.ts       # Email/password login
+│   │       ├── auth/logout/route.ts      # Clear session cookie
+│   │       ├── auth/register/route.ts    # New account registration
+│   │       ├── auth/forgot-password/     # Send reset email
+│   │       ├── auth/reset-password/      # Reset with token
+│   │       ├── admin/feedback/route.ts   # Admin feedback CRUD
+│   │       ├── feedback/route.ts         # Submit feedback
+│   │       ├── watches/route.ts          # CRUD for watch collection
+│   │       ├── wear-log/route.ts         # CRUD for wear log entries
+│   │       ├── upload/route.ts           # Image upload (Vercel Blob)
+│   │       ├── collection/route.ts       # Collection endpoints
+│   │       ├── db-init/route.ts          # First-deploy schema init (Postgres)
+│   │       └── wishlist/                 # Wishlist + price history endpoints
 │   ├── lib/
-│   │   ├── auth.ts                  # Auth token generation + verification
-│   │   ├── db.ts                    # Dual-mode DB (SQLite local / Postgres prod)
-│   │   └── test-db.ts               # Isolated SQLite for tests
-│   ├── proxy.ts                     # Auth proxy (session cookie check, Next.js 16)
+│   │   ├── auth.ts                       # HMAC session tokens + cookie helpers
+│   │   ├── db.ts                         # Dual-mode DB (SQLite local / Postgres prod)
+│   │   └── test-db.ts                    # Isolated SQLite for tests
+│   ├── middleware.ts                      # Auth middleware (session check)
 │   └── __tests__/
-│       ├── api/                     # API route tests
-│       ├── integration/             # End-to-end flow tests
-│       ├── lib/                     # Database + auth tests
-│       ├── pages/                   # Page rendering tests
-│       └── utils/                   # Date formatting tests
+│       ├── api/                          # API route tests
+│       ├── integration/                  # End-to-end flow tests
+│       ├── lib/                          # Database + auth tests
+│       ├── pages/                        # Page rendering tests
+│       └── utils/                        # Date formatting tests
 ├── public/
-│   └── uploads/                     # Uploaded images in dev (gitignored)
+│   └── uploads/                          # Uploaded images in dev (gitignored)
 ├── script/
-│   ├── test                         # Pre-commit test runner
-│   └── test_fast                    # Fast test runner
-├── jest.config.*                    # Jest configuration
+│   ├── test                              # Pre-commit test runner
+│   └── test_fast                         # Fast test runner
+├── jest.config.*                         # Jest configuration
 ├── tailwind.config.ts
 ├── tsconfig.json
 ├── next.config.js
@@ -138,9 +154,21 @@ watch-tracker/
 ## Database Schema
 
 ```sql
+-- User accounts
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  is_admin INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  reset_token TEXT,
+  reset_token_expires TEXT
+);
+
 -- Your watch collection
 CREATE TABLE watches (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id),
   brand TEXT NOT NULL,
   model TEXT NOT NULL,
   reference TEXT,
@@ -157,21 +185,25 @@ CREATE TABLE watches (
 -- One entry per day — which watch you wore
 CREATE TABLE wear_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id),
   watch_id INTEGER NOT NULL,
-  date TEXT NOT NULL UNIQUE,
+  date TEXT NOT NULL,
   image_url TEXT,
   notes TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (watch_id) REFERENCES watches(id)
+  FOREIGN KEY (watch_id) REFERENCES watches(id),
+  UNIQUE(user_id, date)              -- one watch per user per day
 );
 
 -- Watches you want
 CREATE TABLE wishlist (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id),
   brand TEXT NOT NULL,
   model TEXT NOT NULL,
   reference TEXT,
   image_url TEXT,
+  source_url TEXT,
   target_price REAL,
   notes TEXT,
   status TEXT DEFAULT 'watching',    -- 'watching', 'purchased', 'removed'
@@ -184,10 +216,19 @@ CREATE TABLE price_history (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   wishlist_id INTEGER NOT NULL,
   price REAL NOT NULL,
-  source TEXT,                       -- 'chrono24', 'ebay', 'manual', etc.
+  source TEXT,
   url TEXT,
   recorded_at TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (wishlist_id) REFERENCES wishlist(id) ON DELETE CASCADE
+);
+
+-- User feedback
+CREATE TABLE feedback (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id),
+  email TEXT,
+  message TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
@@ -195,17 +236,24 @@ CREATE TABLE price_history (
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/auth/login` | Authenticate with password, sets session cookie |
-| `GET` | `/api/watches` | List all watches |
-| `POST` | `/api/watches` | Add a new watch (returns existing if brand/model/reference match) |
+| `POST` | `/api/auth/login` | Authenticate with email + password, sets session cookie |
+| `POST` | `/api/auth/logout` | Clear session cookie |
+| `POST` | `/api/auth/register` | Create a new account |
+| `POST` | `/api/auth/forgot-password` | Send password reset email |
+| `POST` | `/api/auth/reset-password` | Reset password with token |
+| `POST` | `/api/feedback` | Submit feedback (public) |
+| `GET` | `/api/admin/feedback` | List all feedback (admin only) |
+| `DELETE` | `/api/admin/feedback` | Delete a feedback entry (admin only) |
+| `GET` | `/api/watches` | List user's watches |
+| `POST` | `/api/watches` | Add a new watch |
 | `GET` | `/api/watches/[id]` | Get single watch with wear count |
-| `PATCH` | `/api/watches/[id]` | Update a watch (details, mark as sold) |
-| `DELETE` | `/api/watches/[id]` | Delete a watch and its wear log entries |
-| `GET` | `/api/collection` | List watches split by owned/sold |
-| `GET` | `/api/wear-log` | Get wear log (supports `?date=YYYY-MM-DD` or `?month=YYYY-MM`) |
+| `PATCH` | `/api/watches/[id]` | Update a watch |
+| `DELETE` | `/api/watches/[id]` | Delete a watch |
+| `GET` | `/api/collection` | List watches split by owned/sold with stats |
+| `GET` | `/api/wear-log` | Get wear log (`?date=YYYY-MM-DD` or `?month=YYYY-MM`) |
 | `POST` | `/api/wear-log` | Log a wear entry |
-| `GET` | `/api/wear-log/[id]` | Get a single wear log entry with watch info |
-| `PATCH` | `/api/wear-log/[id]` | Update watch, image, or notes on an existing entry |
+| `GET` | `/api/wear-log/[id]` | Get a single wear log entry |
+| `PATCH` | `/api/wear-log/[id]` | Update a wear log entry |
 | `DELETE` | `/api/wear-log/[id]` | Delete a wear log entry |
 | `POST` | `/api/upload` | Upload an image, returns `{ url }` |
 | `GET` | `/api/wishlist` | List wishlist items with latest prices |
@@ -219,14 +267,19 @@ CREATE TABLE price_history (
 ## Deployment (Vercel)
 
 1. Push to GitHub and import the repo in Vercel
-2. Add environment variables: `AUTH_PASSWORD`, `POSTGRES_URL`, `BLOB_READ_WRITE_TOKEN`
+2. Add environment variables:
+   - `SESSION_SECRET` — random secret for session token signing
+   - `POSTGRES_URL` — Vercel Postgres connection string
+   - `BLOB_READ_WRITE_TOKEN` — Vercel Blob token
+   - `RESEND_API_KEY` — (optional) Resend API key for password reset emails
 3. After first deploy, hit `/api/db-init` once to create the Postgres schema
+4. Register your admin account via `/register`, then set `is_admin = 1` in the database for admin access
 
 ## Roadmap
 
 - [x] **Phase 1** — Core app: calendar, logging, stats, image uploads
 - [x] **Phase 2** — Wishlist & price monitoring
-- [x] **Phase 3** — Auth & Vercel deployment support
+- [x] **Phase 3** — Multi-user auth, registration, password reset, feedback
 - [ ] **Phase 4** — Instagram integration
 
 ## License

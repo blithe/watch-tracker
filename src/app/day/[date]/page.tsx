@@ -2,18 +2,23 @@ import db from '@/lib/db';
 import Link from 'next/link';
 import DeleteLogButton from './DeleteLogButton';
 import DayImage from './DayImage';
+import { getSessionUserId } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DayPage({ params }: { params: Promise<{ date: string }> }) {
+  const userId = await getSessionUserId();
+  if (!userId) redirect('/login');
+
   const { date } = await params;
 
   const log = await db.prepare(`
     SELECT wl.*, w.brand, w.model, w.reference, w.image_url as watch_image
     FROM wear_log wl
     JOIN watches w ON w.id = wl.watch_id
-    WHERE wl.date = ?
-  `).get(date) as { id: number; date: string; image_url: string | null; notes: string | null; brand: string; model: string; reference: string | null; watch_image: string | null } | undefined;
+    WHERE wl.date = ? AND wl.user_id = ?
+  `).get(date, userId) as { id: number; date: string; image_url: string | null; notes: string | null; brand: string; model: string; reference: string | null; watch_image: string | null } | undefined;
 
   return (
     <div>

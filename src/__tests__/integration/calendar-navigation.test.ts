@@ -5,12 +5,17 @@
 import { NextRequest } from 'next/server';
 import { POST as createWatch } from '@/app/api/watches/route';
 import { POST as logWear } from '@/app/api/wear-log/route';
-import { getTestDb, resetTestDb, closeTestDb } from '@/lib/test-db';
+import { getTestDb, resetTestDb, closeTestDb, getAuthHeaders } from '@/lib/test-db';
 
 // Mock the main db module to use test database
 jest.mock('../../lib/db', () => {
   return require('../../lib/test-db').getTestDb();
 });
+
+function makeReq(url: string, options?: RequestInit) {
+  const headers = { 'Content-Type': 'application/json', ...getAuthHeaders(), ...(options?.headers as Record<string, string> || {}) };
+  return new NextRequest(url, { ...options, headers });
+}
 
 describe('Integration: Calendar Navigation & Display', () => {
   beforeEach(() => {
@@ -24,49 +29,29 @@ describe('Integration: Calendar Navigation & Display', () => {
   it('should filter wear logs by month correctly', async () => {
     const db = getTestDb();
 
-    // Create test watches
-    const watch1Request = new NextRequest('http://localhost/api/watches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand: 'Watch1', model: 'Model1' })
-    });
-    const watch1Response = await createWatch(watch1Request);
-    const watch1 = await watch1Response.json();
-
-    const watch2Request = new NextRequest('http://localhost/api/watches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand: 'Watch2', model: 'Model2' })
-    });
-    const watch2Response = await createWatch(watch2Request);
-    const watch2 = await watch2Response.json();
+    const watch1 = await (await createWatch(makeReq('http://localhost/api/watches', { method: 'POST', body: JSON.stringify({ brand: 'Watch1', model: 'Model1' }) }))).json();
+    const watch2 = await (await createWatch(makeReq('http://localhost/api/watches', { method: 'POST', body: JSON.stringify({ brand: 'Watch2', model: 'Model2' }) }))).json();
 
     // Insert wear logs across multiple months
     const wearLogs = [
       // January 2026
       { watch_id: watch1.id, date: '2026-01-15', notes: 'January wear 1' },
       { watch_id: watch2.id, date: '2026-01-28', notes: 'January wear 2' },
-      
+
       // February 2026
       { watch_id: watch1.id, date: '2026-02-03', notes: 'February wear 1' },
       { watch_id: watch2.id, date: '2026-02-14', notes: 'February wear 2' },
       { watch_id: watch1.id, date: '2026-02-28', notes: 'February wear 3' },
-      
+
       // March 2026
       { watch_id: watch2.id, date: '2026-03-10', notes: 'March wear 1' },
-      
+
       // December 2025 (different year)
       { watch_id: watch1.id, date: '2025-12-25', notes: 'December wear' }
     ];
 
     for (const wearData of wearLogs) {
-      const logRequest = new NextRequest('http://localhost/api/wear-log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(wearData)
-      });
-
-      const logResponse = await logWear(logRequest);
+      const logResponse = await logWear(makeReq('http://localhost/api/wear-log', { method: 'POST', body: JSON.stringify(wearData) }));
       expect(logResponse.status).toBe(200);
     }
 
@@ -84,21 +69,9 @@ describe('Integration: Calendar Navigation & Display', () => {
     `).all(`${year}-${monthStr}-%`);
 
     expect(febLogs).toHaveLength(3); // Only February logs
-    expect(febLogs[0]).toMatchObject({
-      date: '2026-02-03',
-      notes: 'February wear 1',
-      brand: 'Watch1'
-    });
-    expect(febLogs[1]).toMatchObject({
-      date: '2026-02-14',
-      notes: 'February wear 2',
-      brand: 'Watch2'
-    });
-    expect(febLogs[2]).toMatchObject({
-      date: '2026-02-28',
-      notes: 'February wear 3',
-      brand: 'Watch1'
-    });
+    expect(febLogs[0]).toMatchObject({ date: '2026-02-03', notes: 'February wear 1', brand: 'Watch1' });
+    expect(febLogs[1]).toMatchObject({ date: '2026-02-14', notes: 'February wear 2', brand: 'Watch2' });
+    expect(febLogs[2]).toMatchObject({ date: '2026-02-28', notes: 'February wear 3', brand: 'Watch1' });
 
     // Test: Query for January 2026
     const janLogs = db.prepare(`
@@ -123,10 +96,7 @@ describe('Integration: Calendar Navigation & Display', () => {
     `).all('2026-03-%');
 
     expect(marLogs).toHaveLength(1); // Only March log
-    expect(marLogs[0]).toMatchObject({
-      date: '2026-03-10',
-      notes: 'March wear 1'
-    });
+    expect(marLogs[0]).toMatchObject({ date: '2026-03-10', notes: 'March wear 1' });
 
     // Test: Query for December 2025 (different year)
     const decLogs = db.prepare(`
@@ -138,22 +108,13 @@ describe('Integration: Calendar Navigation & Display', () => {
     `).all('2025-12-%');
 
     expect(decLogs).toHaveLength(1);
-    expect(decLogs[0]).toMatchObject({
-      date: '2025-12-25',
-      notes: 'December wear'
-    });
+    expect(decLogs[0]).toMatchObject({ date: '2025-12-25', notes: 'December wear' });
   });
 
   it('should return empty result for months with no logs', async () => {
     const db = getTestDb();
 
-    // Create a watch but don't log any wears
-    const watchRequest = new NextRequest('http://localhost/api/watches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand: 'Unused', model: 'Watch' })
-    });
-    await createWatch(watchRequest);
+    await createWatch(makeReq('http://localhost/api/watches', { method: 'POST', body: JSON.stringify({ brand: 'Unused', model: 'Watch' }) }));
 
     // Query for a month with no logs (April 2026)
     const emptyMonthLogs = db.prepare(`
@@ -171,31 +132,16 @@ describe('Integration: Calendar Navigation & Display', () => {
   it('should verify calendar today logic uses correct date format', async () => {
     const db = getTestDb();
 
-    // Create a watch
-    const watchRequest = new NextRequest('http://localhost/api/watches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand: 'Today', model: 'Watch' })
-    });
-    const watchResponse = await createWatch(watchRequest);
-    const watch = await watchResponse.json();
+    const watch = await (await createWatch(makeReq('http://localhost/api/watches', { method: 'POST', body: JSON.stringify({ brand: 'Today', model: 'Watch' }) }))).json();
 
     // Test with today's date in local format (not UTC)
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 
-    // Log a wear for today
-    const todayWearRequest = new NextRequest('http://localhost/api/wear-log', {
+    const todayWearResponse = await logWear(makeReq('http://localhost/api/wear-log', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        watch_id: watch.id,
-        date: todayStr,
-        notes: 'Today wear'
-      })
-    });
-
-    const todayWearResponse = await logWear(todayWearRequest);
+      body: JSON.stringify({ watch_id: watch.id, date: todayStr, notes: 'Today wear' })
+    }));
     expect(todayWearResponse.status).toBe(200);
 
     // Test calendar today detection logic (from page.tsx)
@@ -223,24 +169,13 @@ describe('Integration: Calendar Navigation & Display', () => {
 
     const todayDay = now.getDate();
     expect(logMap.has(todayDay)).toBe(true);
-    expect(logMap.get(todayDay)).toMatchObject({
-      brand: 'Today',
-      model: 'Watch',
-      notes: 'Today wear'
-    });
+    expect(logMap.get(todayDay)).toMatchObject({ brand: 'Today', model: 'Watch', notes: 'Today wear' });
   });
 
   it('should handle dates at month boundaries correctly', async () => {
     const db = getTestDb();
 
-    // Create a watch
-    const watchRequest = new NextRequest('http://localhost/api/watches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand: 'Boundary', model: 'Test' })
-    });
-    const watchResponse = await createWatch(watchRequest);
-    const watch = await watchResponse.json();
+    const watch = await (await createWatch(makeReq('http://localhost/api/watches', { method: 'POST', body: JSON.stringify({ brand: 'Boundary', model: 'Test' }) }))).json();
 
     // Test month boundary dates
     const boundaryDates = [
@@ -251,20 +186,11 @@ describe('Integration: Calendar Navigation & Display', () => {
       { date: '2026-12-31', description: 'Last day of year' }
     ];
 
-    // Log wears for boundary dates
-    for (let i = 0; i < boundaryDates.length; i++) {
-      const { date, description } = boundaryDates[i];
-      const boundaryWearRequest = new NextRequest('http://localhost/api/wear-log', {
+    for (const { date, description } of boundaryDates) {
+      const boundaryWearResponse = await logWear(makeReq('http://localhost/api/wear-log', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          watch_id: watch.id,
-          date: date,
-          notes: description
-        })
-      });
-
-      const boundaryWearResponse = await logWear(boundaryWearRequest);
+        body: JSON.stringify({ watch_id: watch.id, date, notes: description })
+      }));
       expect(boundaryWearResponse.status).toBe(200);
     }
 
@@ -278,10 +204,7 @@ describe('Integration: Calendar Navigation & Display', () => {
     `).all('2026-01-%');
 
     expect(janLogs).toHaveLength(1);
-    expect(janLogs[0]).toMatchObject({
-      date: '2026-01-31',
-      notes: 'Last day of January'
-    });
+    expect(janLogs[0]).toMatchObject({ date: '2026-01-31', notes: 'Last day of January' });
 
     // Test February query includes Feb 1 and Feb 28 but not Jan 31 or Mar 1
     const febLogs = db.prepare(`
@@ -293,14 +216,8 @@ describe('Integration: Calendar Navigation & Display', () => {
     `).all('2026-02-%');
 
     expect(febLogs).toHaveLength(2);
-    expect(febLogs[0]).toMatchObject({
-      date: '2026-02-01',
-      notes: 'First day of February'
-    });
-    expect(febLogs[1]).toMatchObject({
-      date: '2026-02-28',
-      notes: 'Last day of February (non-leap year)'
-    });
+    expect(febLogs[0]).toMatchObject({ date: '2026-02-01', notes: 'First day of February' });
+    expect(febLogs[1]).toMatchObject({ date: '2026-02-28', notes: 'Last day of February (non-leap year)' });
 
     // Test March query includes Mar 1 but not Feb 28
     const marLogs = db.prepare(`
@@ -312,10 +229,7 @@ describe('Integration: Calendar Navigation & Display', () => {
     `).all('2026-03-%');
 
     expect(marLogs).toHaveLength(1);
-    expect(marLogs[0]).toMatchObject({
-      date: '2026-03-01',
-      notes: 'First day of March'
-    });
+    expect(marLogs[0]).toMatchObject({ date: '2026-03-01', notes: 'First day of March' });
 
     // Test December query
     const decLogs = db.prepare(`
@@ -327,43 +241,25 @@ describe('Integration: Calendar Navigation & Display', () => {
     `).all('2026-12-%');
 
     expect(decLogs).toHaveLength(1);
-    expect(decLogs[0]).toMatchObject({
-      date: '2026-12-31',
-      notes: 'Last day of year'
-    });
+    expect(decLogs[0]).toMatchObject({ date: '2026-12-31', notes: 'Last day of year' });
   });
 
   it('should handle leap year February correctly', async () => {
     const db = getTestDb();
 
-    // Create a watch
-    const watchRequest = new NextRequest('http://localhost/api/watches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand: 'Leap', model: 'Year' })
-    });
-    const watchResponse = await createWatch(watchRequest);
-    const watch = await watchResponse.json();
+    const watch = await (await createWatch(makeReq('http://localhost/api/watches', { method: 'POST', body: JSON.stringify({ brand: 'Leap', model: 'Year' }) }))).json();
 
-    // Test leap year (2024) vs non-leap year (2026)
     const leapYearDates = [
       { date: '2024-02-28', description: 'Feb 28 in leap year' },
-      { date: '2024-02-29', description: 'Leap day' }, // This should work in 2024
+      { date: '2024-02-29', description: 'Leap day' },
       { date: '2024-03-01', description: 'Mar 1 after leap day' }
     ];
 
     for (const { date, description } of leapYearDates) {
-      const leapWearRequest = new NextRequest('http://localhost/api/wear-log', {
+      const leapWearResponse = await logWear(makeReq('http://localhost/api/wear-log', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          watch_id: watch.id,
-          date: date,
-          notes: description
-        })
-      });
-
-      const leapWearResponse = await logWear(leapWearRequest);
+        body: JSON.stringify({ watch_id: watch.id, date, notes: description })
+      }));
       expect(leapWearResponse.status).toBe(200);
     }
 
@@ -396,22 +292,8 @@ describe('Integration: Calendar Navigation & Display', () => {
   it('should sort logs by date within a month correctly', async () => {
     const db = getTestDb();
 
-    // Create watches
-    const watch1Request = new NextRequest('http://localhost/api/watches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand: 'Sort', model: 'Test1' })
-    });
-    const watch1Response = await createWatch(watch1Request);
-    const watch1 = await watch1Response.json();
-
-    const watch2Request = new NextRequest('http://localhost/api/watches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand: 'Sort', model: 'Test2' })
-    });
-    const watch2Response = await createWatch(watch2Request);
-    const watch2 = await watch2Response.json();
+    const watch1 = await (await createWatch(makeReq('http://localhost/api/watches', { method: 'POST', body: JSON.stringify({ brand: 'Sort', model: 'Test1' }) }))).json();
+    const watch2 = await (await createWatch(makeReq('http://localhost/api/watches', { method: 'POST', body: JSON.stringify({ brand: 'Sort', model: 'Test2' }) }))).json();
 
     // Add wears in non-chronological order
     const unorderedWears = [
@@ -422,13 +304,7 @@ describe('Integration: Calendar Navigation & Display', () => {
     ];
 
     for (const wearData of unorderedWears) {
-      const wearRequest = new NextRequest('http://localhost/api/wear-log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(wearData)
-      });
-
-      const wearResponse = await logWear(wearRequest);
+      const wearResponse = await logWear(makeReq('http://localhost/api/wear-log', { method: 'POST', body: JSON.stringify(wearData) }));
       expect(wearResponse.status).toBe(200);
     }
 

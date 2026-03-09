@@ -1,10 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import db, { CollectionWatch } from '@/lib/db';
+import { getSessionUserIdFromRequest } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  // Get all watches with wear counts; fall back to first wear log photo when no watch photo
+export async function GET(req: NextRequest) {
+  const userId = getSessionUserIdFromRequest(req);
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const watches = await db.prepare(`
     SELECT w.*,
            COUNT(wl.id) as wear_count,
@@ -17,11 +20,11 @@ export async function GET() {
            )) as image_url
     FROM watches w
     LEFT JOIN wear_log wl ON w.id = wl.watch_id
+    WHERE w.user_id = ?
     GROUP BY w.id
     ORDER BY w.brand, w.model
-  `).all() as CollectionWatch[];
+  `).all(userId) as CollectionWatch[];
 
-  // Add computed fields for sold watches
   const watchesWithComputed = watches.map(watch => {
     if (watch.sold_date && watch.purchase_date) {
       const purchaseDate = new Date(watch.purchase_date);
@@ -39,11 +42,9 @@ export async function GET() {
     return watch;
   });
 
-  // Split by status
   const owned = watchesWithComputed.filter(w => w.status === 'owned' || w.status !== 'sold');
   const sold = watchesWithComputed.filter(w => w.status === 'sold');
 
-  // Calculate summary stats
   const totalCollectionValue = owned.reduce((sum, w) => sum + (w.purchase_price || 0), 0);
   const totalInvested = watches.reduce((sum, w) => sum + (w.purchase_price || 0), 0);
   const totalSoldFor = sold.reduce((sum, w) => sum + (w.sold_price || 0), 0);

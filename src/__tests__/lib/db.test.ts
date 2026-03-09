@@ -102,7 +102,7 @@ describe('Database initialization and schema', () => {
         pk: number;
       }>;
 
-      expect(tableInfo).toHaveLength(11);
+      expect(tableInfo).toHaveLength(12);
       
       const columns = tableInfo.reduce((acc, col) => {
         acc[col.name] = col;
@@ -182,8 +182,8 @@ describe('Database initialization and schema', () => {
         pk: number;
       }>;
 
-      expect(tableInfo).toHaveLength(6);
-      
+      expect(tableInfo).toHaveLength(7);
+
       const columns = tableInfo.reduce((acc, col) => {
         acc[col.name] = col;
         return acc;
@@ -235,8 +235,9 @@ describe('Database initialization and schema', () => {
         on_delete: string;
       }>;
 
-      expect(foreignKeys).toHaveLength(1);
-      expect(foreignKeys[0]).toMatchObject({
+      expect(foreignKeys.length).toBeGreaterThanOrEqual(1);
+      const watchesFk = foreignKeys.find(fk => fk.table === 'watches');
+      expect(watchesFk).toMatchObject({
         table: 'watches',
         from: 'watch_id',
         to: 'id',
@@ -370,10 +371,10 @@ describe('Database initialization and schema', () => {
     it('should enforce unique date constraint', () => {
       const { watch1Id, watch2Id } = seedTestData();
       const db = getTestDb();
-      
-      // Try to insert duplicate date
+
+      // Try to insert duplicate date for the same user — should fail
       expect(() => {
-        db.prepare('INSERT INTO wear_log (watch_id, date) VALUES (?, ?)').run(watch2Id, '2026-02-08');
+        db.prepare('INSERT INTO wear_log (user_id, watch_id, date) VALUES (?, ?, ?)').run(1, watch2Id, '2026-02-08');
       }).toThrow(/UNIQUE constraint failed/);
     });
   });

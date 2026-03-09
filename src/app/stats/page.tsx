@@ -1,21 +1,26 @@
 import db from '@/lib/db';
+import { getSessionUserId } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
 export default async function StatsPage() {
-  const totalDaysRow = await db.prepare('SELECT COUNT(*) as c FROM wear_log').get() as { c: number };
+  const userId = await getSessionUserId();
+  if (!userId) redirect('/login');
+
+  const totalDaysRow = await db.prepare('SELECT COUNT(*) as c FROM wear_log WHERE user_id = ?').get(userId) as { c: number };
   const totalDays = totalDaysRow.c;
 
   const wearCounts = await db.prepare(`
     SELECT w.brand, w.model, w.reference, COUNT(*) as wear_count
     FROM wear_log wl JOIN watches w ON w.id = wl.watch_id
+    WHERE wl.user_id = ?
     GROUP BY wl.watch_id, w.brand, w.model, w.reference ORDER BY wear_count DESC
-  `).all() as Array<{ brand: string; model: string; reference: string | null; wear_count: number }>;
+  `).all(userId) as Array<{ brand: string; model: string; reference: string | null; wear_count: number }>;
 
   const mostWorn = wearCounts[0] || null;
 
-  // Current streak: consecutive days ending today (or most recent logged day)
-  const allDates = await db.prepare('SELECT date FROM wear_log ORDER BY date DESC').all() as Array<{ date: string }>;
+  const allDates = await db.prepare('SELECT date FROM wear_log WHERE user_id = ? ORDER BY date DESC').all(userId) as Array<{ date: string }>;
   let streak = 0;
   if (allDates.length > 0) {
     let expected = new Date(allDates[0].date + 'T12:00:00');

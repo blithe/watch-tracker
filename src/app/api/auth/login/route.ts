@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionToken, verifyToken, COOKIE_NAME } from '@/lib/auth';
+import db from '@/lib/db';
+import bcrypt from 'bcryptjs';
+import { createSessionToken, COOKIE_NAME } from '@/lib/auth';
 
 // Simple in-memory rate limiter: max 10 attempts per IP per 15 minutes
 const attempts = new Map<string, { count: number; resetAt: number }>();
@@ -21,28 +23,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Too many attempts, try again later' }, { status: 429 });
   }
 
-  const { password } = await req.json();
-  const expected = process.env.AUTH_PASSWORD;
+  const { email, password } = await req.json();
 
-  if (!expected) {
-    return NextResponse.json({ error: 'No password configured' }, { status: 500 });
+  if (!email || !password) {
+    return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
   }
 
-  // Timing-safe comparison of password hashes
-  const inputHash = await getSessionToken(password);
-  const expectedHash = await getSessionToken(expected);
-  if (!verifyToken(inputHash, expectedHash)) {
-    return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
+  const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase().trim()) as any;
+
+  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
   }
 
-  const token = await getSessionToken(password);
+  const token = createSessionToken(user.id);
   const response = NextResponse.json({ ok: true });
-
   response.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 30, // 30 days
+    maxAge: 60 * 60 * 24 * 30,
     path: '/',
   });
 

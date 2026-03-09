@@ -19,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <a href="/wishlist" className="text-sm text-zinc-400 hover:text-zinc-200">Wishlist</a>
             <a href="/stats" className="text-sm text-zinc-400 hover:text-zinc-200">Stats</a>
             <a href="/log" className="text-sm text-zinc-400 hover:text-zinc-200">+ Log</a>
+            <a href="/feedback" className="text-sm text-zinc-400 hover:text-zinc-200">Feedback</a>
             <LogoutButton />
           </div>
         </nav>

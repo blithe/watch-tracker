@@ -20,8 +20,19 @@ function createSqliteDb(): DB {
   sqlite.pragma('foreign_keys = ON');
 
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      is_admin INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      reset_token TEXT,
+      reset_token_expires TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS watches (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER REFERENCES users(id),
       brand TEXT NOT NULL,
       model TEXT NOT NULL,
       reference TEXT,
@@ -37,8 +48,9 @@ function createSqliteDb(): DB {
 
     CREATE TABLE IF NOT EXISTS wear_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER REFERENCES users(id),
       watch_id INTEGER NOT NULL,
-      date TEXT NOT NULL UNIQUE,
+      date TEXT NOT NULL,
       image_url TEXT,
       notes TEXT,
       created_at TEXT DEFAULT (datetime('now')),
@@ -47,6 +59,7 @@ function createSqliteDb(): DB {
 
     CREATE TABLE IF NOT EXISTS wishlist (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER REFERENCES users(id),
       brand TEXT NOT NULL,
       model TEXT NOT NULL,
       reference TEXT,
@@ -68,10 +81,21 @@ function createSqliteDb(): DB {
       recorded_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (wishlist_id) REFERENCES wishlist(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER REFERENCES users(id),
+      email TEXT,
+      message TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // Migrate existing databases: add columns added after initial schema
   try { sqlite.exec(`ALTER TABLE wishlist ADD COLUMN source_url TEXT`); } catch {}
+  try { sqlite.exec(`ALTER TABLE watches ADD COLUMN user_id INTEGER REFERENCES users(id)`); } catch {}
+  try { sqlite.exec(`ALTER TABLE wear_log ADD COLUMN user_id INTEGER REFERENCES users(id)`); } catch {}
+  try { sqlite.exec(`ALTER TABLE wishlist ADD COLUMN user_id INTEGER REFERENCES users(id)`); } catch {}
 
   return sqlite;
 }
@@ -117,8 +141,19 @@ const db: DB = process.env.POSTGRES_URL ? createPostgresDb() : createSqliteDb();
 
 export default db;
 
+export interface User {
+  id: number;
+  email: string;
+  password_hash: string;
+  is_admin: boolean | number;
+  created_at: string;
+  reset_token: string | null;
+  reset_token_expires: string | null;
+}
+
 export interface Watch {
   id: number;
+  user_id: number | null;
   brand: string;
   model: string;
   reference: string | null;
@@ -140,6 +175,7 @@ export interface CollectionWatch extends Watch {
 
 export interface WearLog {
   id: number;
+  user_id: number | null;
   watch_id: number;
   date: string;
   image_url: string | null;
@@ -156,6 +192,7 @@ export interface WearLogWithWatch extends WearLog {
 
 export interface Wishlist {
   id: number;
+  user_id: number | null;
   brand: string;
   model: string;
   reference: string | null;
@@ -181,4 +218,12 @@ export interface WishlistWithLatestPrice extends Wishlist {
   latest_price: number | null;
   latest_price_source: string | null;
   latest_price_date: string | null;
+}
+
+export interface Feedback {
+  id: number;
+  user_id: number | null;
+  email: string | null;
+  message: string;
+  created_at: string;
 }
