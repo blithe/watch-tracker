@@ -3,6 +3,8 @@ import db from '@/lib/db';
 import crypto from 'crypto';
 import { Resend } from 'resend';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   const { email } = await req.json();
 

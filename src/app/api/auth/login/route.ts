@@ -17,7 +17,10 @@ function isRateLimited(ip: string): boolean {
   return entry.count > 10;
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
+  try {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown';
   if (isRateLimited(ip)) {
     return NextResponse.json({ error: 'Too many attempts, try again later' }, { status: 429 });
@@ -46,4 +49,8 @@ export async function POST(req: NextRequest) {
   });
 
   return response;
+  } catch (e: any) {
+    console.error('Login error:', e);
+    return NextResponse.json({ error: 'Login failed' }, { status: 500 });
+  }
 }

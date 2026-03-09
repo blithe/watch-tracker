@@ -3,7 +3,10 @@ import db from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { createSessionToken, COOKIE_NAME } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
+  try {
   const { email, password } = await req.json();
 
   if (!email || !password) {
@@ -37,4 +40,8 @@ export async function POST(req: NextRequest) {
   });
 
   return response;
+  } catch (e: any) {
+    console.error('Register error:', e);
+    return NextResponse.json({ error: 'Registration failed' }, { status: 500 });
+  }
 }
