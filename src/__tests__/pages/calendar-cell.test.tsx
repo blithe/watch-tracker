@@ -103,11 +103,12 @@ describe('CalendarCell', () => {
       expect(wrapper.className).toContain('inset-0');
     });
 
-    it('image fills the cell with w-full h-full', () => {
+    it('image fills the cell (fill prop sets 100% width/height via inline style)', () => {
       const { container } = render(<CalendarCell {...baseProps} cellImage="/wrist.jpg" />);
       const img = container.querySelector('img')!;
-      expect(img.className).toContain('w-full');
-      expect(img.className).toContain('h-full');
+      // next/image with fill sets width/height via inline style, not className
+      expect(img.style.width).toBe('100%');
+      expect(img.style.height).toBe('100%');
     });
 
     it('image uses object-cover to crop intelligently', () => {
@@ -125,7 +126,8 @@ describe('CalendarCell', () => {
     it('sets the correct src on the image', () => {
       const { container } = render(<CalendarCell {...baseProps} cellImage="/uploads/watch.jpg" />);
       const img = container.querySelector('img')!;
-      expect(img.getAttribute('src')).toBe('/uploads/watch.jpg');
+      // next/image rewrites src through the optimizer; original path is in the URL
+      expect(img.getAttribute('src')).toContain('%2Fuploads%2Fwatch.jpg');
     });
   });
 
