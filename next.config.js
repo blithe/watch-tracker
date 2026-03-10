@@ -7,6 +7,8 @@ const nextConfig = {
         hostname: '*.public.blob.vercel-storage.com',
       },
     ],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days — images rarely change
+    formats: ['image/webp'],             // skip AVIF (5-10x slower to encode)
   },
   async headers() {
     return [
