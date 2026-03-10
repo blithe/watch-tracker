@@ -20,6 +20,16 @@ export default async function StatsPage() {
 
   const mostWorn = wearCounts[0] || null;
 
+  const neglected = await db.prepare(`
+    SELECT w.brand, w.model, w.reference, MAX(wl.date) as last_worn
+    FROM watches w
+    LEFT JOIN wear_log wl ON wl.watch_id = w.id AND wl.user_id = ?
+    WHERE w.user_id = ? AND w.status = 'owned'
+    GROUP BY w.id, w.brand, w.model, w.reference
+    ORDER BY last_worn IS NOT NULL, last_worn ASC
+    LIMIT 3
+  `).all(userId, userId) as Array<{ brand: string; model: string; reference: string | null; last_worn: string | null }>;
+
   const allDates = await db.prepare('SELECT date FROM wear_log WHERE user_id = ? ORDER BY date DESC').all(userId) as Array<{ date: string }>;
   let streak = 0;
   if (allDates.length > 0) {
@@ -53,6 +63,30 @@ export default async function StatsPage() {
           {mostWorn && <p className="text-zinc-500 text-sm">{mostWorn.wear_count} day{Number(mostWorn.wear_count) !== 1 ? 's' : ''}</p>}
         </div>
       </div>
+
+      {neglected.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-3">Due for a Wear</h2>
+          <div className="space-y-2">
+            {neglected.map((w, i) => {
+              let lastWornLabel: string;
+              if (!w.last_worn) {
+                lastWornLabel = 'Never worn';
+              } else {
+                const [y, m, d] = w.last_worn.split('-').map(Number);
+                const days = Math.floor((Date.now() - new Date(y, m - 1, d).getTime()) / 86400000);
+                lastWornLabel = days === 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days} days ago`;
+              }
+              return (
+                <div key={i} className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3">
+                  <span>{w.brand} {w.model}{w.reference ? ` (${w.reference})` : ''}</span>
+                  <span className="text-zinc-500 text-sm">{lastWornLabel}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <h2 className="text-lg font-semibold mb-3">Wear Count by Watch</h2>
       <div className="space-y-2">
