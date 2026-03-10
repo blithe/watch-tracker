@@ -93,26 +93,3 @@ export function getSessionUserIdFromRequest(req: NextRequest): number | null {
   return decodePayload(token.slice(0, dot));
 }
 
-// ─── Legacy compat (kept for existing tests) ─────────────────────────────────
-
-/** @deprecated */
-export async function getSessionToken(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode('watch-tracker-session-v1:' + password);
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hash))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-/** @deprecated */
-export function verifyToken(actual: string, expected: string): boolean {
-  if (actual.length !== b64urlEncode(expected).length && actual.length !== expected.length) return false;
-  const enc = new TextEncoder();
-  const a = enc.encode(actual);
-  const b = enc.encode(expected);
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
-  return diff === 0;
-}

@@ -6,39 +6,39 @@ jest.mock('next/headers', () => ({
   cookies: jest.fn(),
 }));
 
-import { getSessionToken, verifyToken } from '@/lib/auth';
+import { createSessionToken, verifySessionToken } from '@/lib/auth';
 
-describe('auth', () => {
-  describe('getSessionToken', () => {
-    it('should return a hex string', async () => {
-      const token = await getSessionToken('test');
-      expect(token).toMatch(/^[0-9a-f]{64}$/);
-    });
-
-    it('should return the same token for the same password', async () => {
-      const token1 = await getSessionToken('password');
-      const token2 = await getSessionToken('password');
-      expect(token1).toBe(token2);
-    });
-
-    it('should return different tokens for different passwords', async () => {
-      const token1 = await getSessionToken('password1');
-      const token2 = await getSessionToken('password2');
-      expect(token1).not.toBe(token2);
-    });
+describe('session tokens', () => {
+  beforeAll(() => {
+    process.env.SESSION_SECRET = 'test-secret-for-auth-tests';
   });
 
-  describe('verifyToken', () => {
-    it('should return true for matching tokens', () => {
-      expect(verifyToken('abc123', 'abc123')).toBe(true);
-    });
+  it('createSessionToken returns a payload.signature string', async () => {
+    const token = await createSessionToken(42);
+    expect(token).toMatch(/^[A-Za-z0-9_-]+\.[0-9a-f]{64}$/);
+  });
 
-    it('should return false for non-matching tokens', () => {
-      expect(verifyToken('abc123', 'xyz789')).toBe(false);
-    });
+  it('verifySessionToken returns the userId for a valid token', async () => {
+    const token = await createSessionToken(7);
+    const userId = await verifySessionToken(token);
+    expect(userId).toBe(7);
+  });
 
-    it('should return false for different length tokens', () => {
-      expect(verifyToken('short', 'muchlongerstring')).toBe(false);
-    });
+  it('verifySessionToken returns null for a tampered token', async () => {
+    const token = await createSessionToken(1);
+    const tampered = token.slice(0, -4) + 'aaaa';
+    expect(await verifySessionToken(tampered)).toBeNull();
+  });
+
+  it('verifySessionToken returns null for a token signed with a different secret', async () => {
+    const token = await createSessionToken(1);
+    process.env.SESSION_SECRET = 'different-secret';
+    expect(await verifySessionToken(token)).toBeNull();
+    process.env.SESSION_SECRET = 'test-secret-for-auth-tests';
+  });
+
+  it('verifySessionToken returns null for a malformed token', async () => {
+    expect(await verifySessionToken('notavalidtoken')).toBeNull();
+    expect(await verifySessionToken('')).toBeNull();
   });
 });
