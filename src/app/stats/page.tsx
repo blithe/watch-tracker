@@ -26,7 +26,7 @@ export default async function StatsPage() {
     LEFT JOIN wear_log wl ON wl.watch_id = w.id AND wl.user_id = ?
     WHERE w.user_id = ? AND w.status = 'owned'
     GROUP BY w.id, w.brand, w.model, w.reference
-    ORDER BY last_worn IS NOT NULL, last_worn ASC
+    ORDER BY MAX(wl.date) IS NOT NULL, MAX(wl.date) ASC
     LIMIT 3
   `).all(userId, userId) as Array<{ brand: string; model: string; reference: string | null; last_worn: string | null }>;
 
