@@ -42,7 +42,10 @@ function LogForm() {
   const [existingLog, setExistingLog] = useState<ExistingLog | null>(null);
 
   useEffect(() => {
-    fetch('/api/watches').then(r => r.json()).then(setWatches);
+    fetch('/api/watches')
+      .then(r => r.json())
+      .then(setWatches)
+      .catch(() => setError('Failed to load watches'));
   }, []);
 
   useEffect(() => {
@@ -60,7 +63,8 @@ function LogForm() {
           setWatchId('');
           setNotes('');
         }
-      });
+      })
+      .catch(() => setError('Failed to load log for this date'));
   }, [date]);
 
   async function handleSubmit(e: React.FormEvent) {
