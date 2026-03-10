@@ -87,7 +87,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Watch not found' }, { status: 404 });
     }
 
-    const updatedWatch = await db.prepare('SELECT * FROM watches WHERE id = ?').get(id);
+    const updatedWatch = await db.prepare('SELECT * FROM watches WHERE id = ? AND user_id = ?').get(id, userId);
     return NextResponse.json(updatedWatch);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
