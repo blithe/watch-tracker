@@ -1,5 +1,5 @@
 import db from '@/lib/db';
-import { getSessionUserId } from '@/lib/auth';
+import { getSessionUserIdFast as getSessionUserId } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 

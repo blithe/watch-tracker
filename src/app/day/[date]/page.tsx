@@ -2,7 +2,7 @@ import db from '@/lib/db';
 import Link from 'next/link';
 import DeleteLogButton from './DeleteLogButton';
 import DayImage from './DayImage';
-import { getSessionUserId } from '@/lib/auth';
+import { getSessionUserIdFast as getSessionUserId } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';

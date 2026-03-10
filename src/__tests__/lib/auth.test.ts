@@ -6,7 +6,7 @@ jest.mock('next/headers', () => ({
   cookies: jest.fn(),
 }));
 
-import { createSessionToken, verifySessionToken } from '@/lib/auth';
+import { createSessionToken, verifySessionToken, getSessionUserIdFast } from '@/lib/auth';
 
 describe('session tokens', () => {
   beforeAll(() => {
@@ -40,5 +40,26 @@ describe('session tokens', () => {
   it('verifySessionToken returns null for a malformed token', async () => {
     expect(await verifySessionToken('notavalidtoken')).toBeNull();
     expect(await verifySessionToken('')).toBeNull();
+  });
+});
+
+describe('getSessionUserIdFast', () => {
+  const mockCookies = jest.requireMock('next/headers').cookies;
+
+  it('returns userId from a valid token without re-verifying HMAC', async () => {
+    process.env.SESSION_SECRET = 'test-secret-for-auth-tests';
+    const token = await createSessionToken(99);
+    mockCookies.mockResolvedValue({ get: () => ({ value: token }) });
+    expect(await getSessionUserIdFast()).toBe(99);
+  });
+
+  it('returns null when no cookie is present', async () => {
+    mockCookies.mockResolvedValue({ get: () => undefined });
+    expect(await getSessionUserIdFast()).toBeNull();
+  });
+
+  it('returns null for a malformed token', async () => {
+    mockCookies.mockResolvedValue({ get: () => ({ value: 'notvalid' }) });
+    expect(await getSessionUserIdFast()).toBeNull();
   });
 });

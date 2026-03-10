@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import NavBar from './NavBar'
 import db from '@/lib/db'
-import { getSessionUserId } from '@/lib/auth'
+import { getSessionUserIdFast as getSessionUserId } from '@/lib/auth'
 
 export const metadata: Metadata = {
   title: 'Watch Tracker',

@@ -83,6 +83,17 @@ export async function getSessionUserId(): Promise<number | null> {
   return verifySessionToken(token);
 }
 
+/** Decode-only session read for server components.
+ *  Middleware already verified the HMAC for all protected routes — no need to re-verify. */
+export async function getSessionUserIdFast(): Promise<number | null> {
+  const store = await cookies();
+  const token = store.get(COOKIE_NAME)?.value;
+  if (!token) return null;
+  const dot = token.lastIndexOf('.');
+  if (dot === -1) return null;
+  return decodePayload(token.slice(0, dot));
+}
+
 /** Get the authenticated userId from an API route request.
  *  Decodes the payload without re-verifying HMAC (middleware already did that). */
 export function getSessionUserIdFromRequest(req: NextRequest): number | null {
