@@ -49,6 +49,16 @@ export async function POST(req: NextRequest) {
 
   const { watch_id, date, image_url, notes } = await req.json();
 
+  if (!watch_id || !date) {
+    return NextResponse.json({ error: 'watch_id and date are required' }, { status: 400 });
+  }
+
+  // Verify the watch belongs to this user
+  const watch = await db.prepare('SELECT id FROM watches WHERE id = ? AND user_id = ?').get(watch_id, userId);
+  if (!watch) {
+    return NextResponse.json({ error: 'Watch not found' }, { status: 404 });
+  }
+
   // Check if user already has a log for this date
   const existing = await db.prepare(
     'SELECT id FROM wear_log WHERE user_id = ? AND date = ?'
@@ -67,7 +77,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Already logged a watch for this date' }, { status: 400 });
     }
     if (e.message?.includes('FOREIGN KEY') || e.code === '23503') {
-      return NextResponse.json({ error: 'FOREIGN KEY constraint failed' }, { status: 500 });
+      return NextResponse.json({ error: 'Watch not found' }, { status: 400 });
     }
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

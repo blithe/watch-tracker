@@ -28,20 +28,17 @@ describe('Integration: Edge Cases', () => {
     closeTestDb();
   });
 
-  it('should fail to log wear for non-existent watch_id (FK constraint)', async () => {
+  it('should fail to log wear for non-existent watch_id', async () => {
     const db = getTestDb();
 
-    const invalidWearRequest = makeReq('http://localhost/api/wear-log', {
+    const invalidWearResponse = await logWear(makeReq('http://localhost/api/wear-log', {
       method: 'POST',
       body: JSON.stringify({ watch_id: 99999, date: '2026-03-01', notes: 'This should fail' })
-    });
-
-    const invalidWearResponse = await logWear(invalidWearRequest);
-    expect(invalidWearResponse.status).toBe(500);
+    }));
+    expect(invalidWearResponse.status).toBe(404);
 
     const errorData = await invalidWearResponse.json();
-    expect(errorData).toHaveProperty('error');
-    expect(errorData.error).toContain('FOREIGN KEY constraint failed');
+    expect(errorData.error).toBe('Watch not found');
 
     const wearLogs = db.prepare('SELECT * FROM wear_log').all();
     expect(wearLogs).toHaveLength(0);
@@ -155,7 +152,7 @@ describe('Integration: Edge Cases', () => {
       method: 'POST',
       body: JSON.stringify({ watch_id: 999, date: '2026-03-05', notes: 'Should fail' })
     }));
-    expect(invalidWearLogResponse.status).toBe(500);
+    expect(invalidWearLogResponse.status).toBe(404);
 
     const invalidPriceResponse = await addPrice(
       makeReq('http://localhost/api/wishlist/999/prices', {

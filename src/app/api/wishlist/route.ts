@@ -37,6 +37,10 @@ export async function POST(req: NextRequest) {
 
   const { brand, model, reference, image_url, source_url, target_price, notes, status } = await req.json();
 
+  if (!brand || !model) {
+    return NextResponse.json({ error: 'Brand and model are required' }, { status: 400 });
+  }
+
   const result = await db.prepare(`
     INSERT INTO wishlist (user_id, brand, model, reference, image_url, source_url, target_price, notes, status)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -104,7 +108,8 @@ export async function DELETE(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const id = searchParams.get('id');
+  const idStr = searchParams.get('id');
+  const id = parseInt(idStr ?? '');
 
   if (!id) {
     return NextResponse.json({ error: 'ID is required' }, { status: 400 });

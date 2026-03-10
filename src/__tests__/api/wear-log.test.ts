@@ -223,46 +223,25 @@ describe('/api/wear-log', () => {
       expect(data).toEqual({ error: 'Already logged a watch for this date' });
     });
 
-    it('should return 500 for invalid watch_id (foreign key constraint)', async () => {
-      seedTestData();
-
-      const requestBody = {
-        watch_id: 99999, // Non-existent watch ID
-        date: '2026-02-13'
-      };
-
+    it('should return 404 for a watch_id that does not belong to the user', async () => {
+      const requestBody = { watch_id: 99999, date: '2026-02-13' };
       const request = makeReq('http://localhost/api/wear-log', {
         method: 'POST',
         body: JSON.stringify(requestBody)
       });
-
       const response = await POST(request);
-
-      expect(response.status).toBe(500);
-
+      expect(response.status).toBe(404);
       const data = await response.json();
-      expect(data).toHaveProperty('error');
-      expect(data.error).toContain('FOREIGN KEY constraint failed');
+      expect(data.error).toBe('Watch not found');
     });
 
-    it('should enforce foreign key constraint', async () => {
-      // Try to create a wear log without any watches in the database
-      const requestBody = {
-        watch_id: 99999,
-        date: '2026-02-14'
-      };
-
+    it('should return 400 for missing required fields', async () => {
       const request = makeReq('http://localhost/api/wear-log', {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ date: '2026-02-14' }) // missing watch_id
       });
-
       const response = await POST(request);
-
-      expect(response.status).toBe(500);
-
-      const data = await response.json();
-      expect(data.error).toContain('FOREIGN KEY constraint failed');
+      expect(response.status).toBe(400);
     });
 
     it('should enforce unique date constraint', async () => {
