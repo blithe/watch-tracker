@@ -19,7 +19,7 @@ export default function CalendarCell({ day, dateStr, isToday, cellImage, hasLog,
     >
       {cellImage ? (
         <div className="absolute inset-0 overflow-hidden rounded-lg">
-          <Image src={cellImage} alt="" fill sizes="(max-width: 640px) 14vw, 100px" className="object-cover object-center" />
+          <Image src={cellImage} alt="" fill sizes="(max-width: 640px) 14vw, 100px" className="object-cover object-center" loading="eager" />
         </div>
       ) : (
         <div className={`absolute inset-0 ${hasLog ? 'bg-zinc-800/50' : ''} ${isToday ? 'bg-blue-500/10' : ''}`} />
