@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import ImportCSV from './ImportCSV';
 
 interface CollectionWatch {
   id: number;
@@ -200,14 +201,17 @@ export default function CollectionPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">My Collection</h1>
-        <Link
-          href="/collection/add"
-          className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          Add Watch
-        </Link>
+        <div className="flex gap-2">
+          <ImportCSV onImported={fetchCollection} />
+          <Link
+            href="/collection/add"
+            className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            Add Watch
+          </Link>
+        </div>
       </div>
 
       {/* Summary Stats */}
