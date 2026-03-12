@@ -16,15 +16,16 @@ export default function ImportCSV({ onImported }: { onImported: () => void }) {
   const [apiError, setApiError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  function reset() {
+  function clearResults() {
     setResult(null);
     setApiError('');
-    if (fileRef.current) fileRef.current.value = '';
   }
 
   function toggle() {
     setOpen(v => !v);
-    reset();
+    setResult(null);
+    setApiError('');
+    if (fileRef.current) fileRef.current.value = '';
   }
 
   async function handleUpload() {
@@ -95,7 +96,7 @@ export default function ImportCSV({ onImported }: { onImported: () => void }) {
             <input
               ref={fileRef}
               type="file"
-              onChange={reset}
+              onChange={clearResults}
               className="text-sm text-zinc-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-zinc-700 file:text-zinc-200 hover:file:bg-zinc-600 file:cursor-pointer"
             />
             <button
