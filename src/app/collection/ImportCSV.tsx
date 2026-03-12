@@ -90,7 +90,7 @@ export default function ImportCSV({ onImported }: { onImported: () => void }) {
             <input
               ref={fileRef}
               type="file"
-              accept=".csv,text/csv,application/vnd.ms-excel"
+              accept=".csv"
               onChange={reset}
               className="text-sm text-zinc-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-zinc-700 file:text-zinc-200 hover:file:bg-zinc-600 file:cursor-pointer"
             />
