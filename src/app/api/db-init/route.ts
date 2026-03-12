@@ -44,8 +44,7 @@ export async function GET() {
         date TEXT NOT NULL,
         image_url TEXT,
         notes TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(user_id, date)
+        created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `;
 
@@ -93,17 +92,9 @@ export async function GET() {
     await sql`ALTER TABLE wishlist ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)`;
     await sql`ALTER TABLE wishlist ADD COLUMN IF NOT EXISTS source_url TEXT`;
 
-    // Fix wear_log unique constraint: old single-user schema had UNIQUE(date); must be UNIQUE(user_id, date)
+    // Drop unique constraints on wear_log date — users can log multiple watches per day
     await sql`ALTER TABLE wear_log DROP CONSTRAINT IF EXISTS wear_log_date_key`;
-    await sql`
-      DO $$ BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_constraint WHERE conname = 'wear_log_user_date_key'
-        ) THEN
-          ALTER TABLE wear_log ADD CONSTRAINT wear_log_user_date_key UNIQUE(user_id, date);
-        END IF;
-      END $$
-    `;
+    await sql`ALTER TABLE wear_log DROP CONSTRAINT IF EXISTS wear_log_user_date_key`;
 
     return NextResponse.json({ ok: true, message: 'All tables created/migrated' });
   } catch (error: any) {

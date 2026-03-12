@@ -82,7 +82,7 @@ describe('Integration: Watch with Multiple Wears', () => {
     });
   });
 
-  it('should enforce UNIQUE constraint on wear_log.date', async () => {
+  it('should allow multiple watches on the same date', async () => {
     const db = getTestDb();
 
     const watch1 = await (await createWatch(makeReq('http://localhost/api/watches', { method: 'POST', body: JSON.stringify({ brand: 'Watch1', model: 'Model1' }) }))).json();
@@ -96,21 +96,12 @@ describe('Integration: Watch with Multiple Wears', () => {
 
     const secondWearResponse = await logWear(makeReq('http://localhost/api/wear-log', {
       method: 'POST',
-      body: JSON.stringify({ watch_id: watch2.id, date: '2026-02-25', notes: 'Attempted second wear on same date' })
+      body: JSON.stringify({ watch_id: watch2.id, date: '2026-02-25', notes: 'Second wear on same date' })
     }));
-    expect(secondWearResponse.status).toBe(400);
-
-    const errorData = await secondWearResponse.json();
-    expect(errorData).toEqual({ error: 'Already logged a watch for this date' });
+    expect(secondWearResponse.status).toBe(200);
 
     const wearLogs = db.prepare('SELECT * FROM wear_log WHERE date = ?').all('2026-02-25');
-    expect(wearLogs).toHaveLength(1);
-
-    const differentDateResponse = await logWear(makeReq('http://localhost/api/wear-log', {
-      method: 'POST',
-      body: JSON.stringify({ watch_id: watch1.id, date: '2026-02-26', notes: 'Same watch, different day' })
-    }));
-    expect(differentDateResponse.status).toBe(200);
+    expect(wearLogs).toHaveLength(2);
   });
 
   it('should handle many wears across different years', async () => {

@@ -188,50 +188,34 @@ describe('Integration: Daily Wear Logging Journey', () => {
     });
   });
 
-  it('should enforce the unique date constraint (one wear per day)', async () => {
+  it('should allow multiple watches on the same date', async () => {
     const db = getTestDb();
 
-    const watch1Request = makeReq('http://localhost/api/watches', {
+    const watch1 = await (await createWatch(makeReq('http://localhost/api/watches', {
       method: 'POST',
       body: JSON.stringify({ brand: 'Brand1', model: 'Model1' })
-    });
-    const watch1Response = await createWatch(watch1Request);
-    const watch1 = await watch1Response.json();
+    }))).json();
 
-    const watch2Request = makeReq('http://localhost/api/watches', {
+    const watch2 = await (await createWatch(makeReq('http://localhost/api/watches', {
       method: 'POST',
       body: JSON.stringify({ brand: 'Brand2', model: 'Model2' })
-    });
-    const watch2Response = await createWatch(watch2Request);
-    const watch2 = await watch2Response.json();
+    }))).json();
 
     const wearDate = '2026-02-17';
-    const logWear1Request = makeReq('http://localhost/api/wear-log', {
+
+    const logWear1Response = await logWear(makeReq('http://localhost/api/wear-log', {
       method: 'POST',
       body: JSON.stringify({ watch_id: watch1.id, date: wearDate, notes: 'First wear' })
-    });
-
-    const logWear1Response = await logWear(logWear1Request);
+    }));
     expect(logWear1Response.status).toBe(200);
 
-    // Try to log a second watch on the same date - should fail
-    const logWear2Request = makeReq('http://localhost/api/wear-log', {
+    const logWear2Response = await logWear(makeReq('http://localhost/api/wear-log', {
       method: 'POST',
       body: JSON.stringify({ watch_id: watch2.id, date: wearDate, notes: 'Second wear' })
-    });
+    }));
+    expect(logWear2Response.status).toBe(200);
 
-    const logWear2Response = await logWear(logWear2Request);
-    expect(logWear2Response.status).toBe(400);
-
-    const errorData = await logWear2Response.json();
-    expect(errorData).toEqual({ error: 'Already logged a watch for this date' });
-
-    // Verify only the first wear exists in the database
     const logs = db.prepare('SELECT * FROM wear_log WHERE date = ?').all(wearDate);
-    expect(logs).toHaveLength(1);
-    expect(logs[0]).toMatchObject({
-      watch_id: watch1.id,
-      notes: 'First wear'
-    });
+    expect(logs).toHaveLength(2);
   });
 });

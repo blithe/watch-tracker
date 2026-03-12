@@ -32,13 +32,16 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     FROM wear_log wl
     JOIN watches w ON w.id = wl.watch_id
     WHERE wl.date LIKE ? AND wl.user_id = ?
-    ORDER BY wl.date
+    ORDER BY wl.date, wl.id
   `).all(`${year}-${monthStr}-%`, userId) as Array<{ id: number; brand: string; model: string; reference: string; image_url: string | null; date: string; log_image: string | null; notes: string | null }>;
 
-  const logMap = new Map<number, typeof logs[0]>();
+  // Group logs by day — multiple entries per day are now possible
+  const logMap = new Map<number, typeof logs>();
   for (const log of logs) {
     const day = parseInt(log.date.split('-')[2]);
-    logMap.set(day, log);
+    const existing = logMap.get(day);
+    if (existing) existing.push(log);
+    else logMap.set(day, [log]);
   }
 
   const prevMonth = month === 0 ? 12 : month;
@@ -62,11 +65,12 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         {Array.from({ length: firstDay }).map((_, i) => <div key={`e-${i}`} />)}
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const day = i + 1;
-          const log = logMap.get(day);
+          const dayLogs = logMap.get(day) ?? [];
+          const firstLog = dayLogs[0];
           const dateStr = `${year}-${monthStr}-${String(day).padStart(2, '0')}`;
           const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
           const isToday = dateStr === todayStr;
-          const cellImage = log?.log_image || log?.image_url || null;
+          const cellImage = firstLog?.log_image || firstLog?.image_url || null;
           return (
             <CalendarCell
               key={day}
@@ -74,8 +78,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
               dateStr={dateStr}
               isToday={isToday}
               cellImage={cellImage}
-              hasLog={!!log}
-              logBrand={log?.brand}
+              hasLog={dayLogs.length > 0}
+              logBrand={firstLog?.brand}
+              logCount={dayLogs.length}
             />
           );
         })}

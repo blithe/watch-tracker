@@ -244,7 +244,7 @@ describe('Database initialization and schema', () => {
       });
     });
 
-    it('should enforce unique constraint on date in wear_log', () => {
+    it('should not have a unique constraint on date in wear_log (multiple watches per day allowed)', () => {
       const db = getTestDb();
       const indices = db.prepare('PRAGMA index_list(wear_log)').all() as Array<{
         seq: number;
@@ -254,9 +254,9 @@ describe('Database initialization and schema', () => {
         partial: number;
       }>;
 
-      // Look for unique index on date column
-      const uniqueIndices = indices.filter(idx => idx.unique === 1);
-      expect(uniqueIndices.length).toBeGreaterThan(0);
+      // No unique index on date — multiple watches per day are allowed
+      const uniqueDateIndices = indices.filter(idx => idx.unique === 1 && idx.origin !== 'pk');
+      expect(uniqueDateIndices).toHaveLength(0);
     });
   });
 
@@ -368,14 +368,14 @@ describe('Database initialization and schema', () => {
       });
     });
 
-    it('should enforce unique date constraint', () => {
+    it('should allow multiple entries on same date', () => {
       const { watch1Id, watch2Id } = seedTestData();
       const db = getTestDb();
 
-      // Try to insert duplicate date for the same user — should fail
-      expect(() => {
-        db.prepare('INSERT INTO wear_log (user_id, watch_id, date) VALUES (?, ?, ?)').run(1, watch2Id, '2026-02-08');
-      }).toThrow(/UNIQUE constraint failed/);
+      // Logging a different watch on the same date should succeed
+      db.prepare('INSERT INTO wear_log (user_id, watch_id, date) VALUES (?, ?, ?)').run(1, watch2Id, '2026-02-08');
+      const logs = db.prepare('SELECT * FROM wear_log WHERE date = ?').all('2026-02-08');
+      expect(logs).toHaveLength(2);
     });
   });
 

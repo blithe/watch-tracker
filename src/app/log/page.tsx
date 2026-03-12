@@ -27,6 +27,7 @@ function LogForm() {
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const defaultDate = searchParams.get('date') || todayStr;
+  const editId = searchParams.get('edit');
 
   const [watches, setWatches] = useState<Watch[]>([]);
   const [date, setDate] = useState(defaultDate);
@@ -48,24 +49,25 @@ function LogForm() {
       .catch(() => setError('Failed to load watches'));
   }, []);
 
+  // Only load existing log when editing a specific entry by ID
   useEffect(() => {
-    if (!date) return;
-    fetch(`/api/wear-log?date=${date}`)
-      .then(r => r.json())
-      .then((log: ExistingLog | null) => {
-        if (log) {
-          setExistingLog(log);
-          setWatchId(String(log.watch_id));
-          setNotes(log.notes || '');
-          setMode('existing');
-        } else {
-          setExistingLog(null);
-          setWatchId('');
-          setNotes('');
-        }
+    if (!editId) {
+      setExistingLog(null);
+      return;
+    }
+    fetch(`/api/wear-log/${editId}`)
+      .then(r => {
+        if (!r.ok) throw new Error('Entry not found');
+        return r.json();
       })
-      .catch(() => setError('Failed to load log for this date'));
-  }, [date]);
+      .then((log: ExistingLog) => {
+        setExistingLog(log);
+        setWatchId(String(log.watch_id));
+        setNotes(log.notes || '');
+        setMode('existing');
+      })
+      .catch(() => setError('Failed to load log entry'));
+  }, [editId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -143,7 +145,7 @@ function LogForm() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm text-zinc-400 mb-1">Date</label>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputCls} required />
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputCls} required disabled={!!existingLog} />
         </div>
 
         <div className="flex gap-2 mb-2">

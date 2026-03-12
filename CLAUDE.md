@@ -26,7 +26,7 @@ Personal watch tracker built with Next.js 16 (App Router), TypeScript, and Tailw
   - Use `CURRENT_TIMESTAMP` (not `NOW()` or `datetime('now')`) for cross-DB compatibility
 - **Local schema**: Auto-created on import of `db.ts` (SQLite)
 - **Production schema**: `/api/db-init` route creates tables on first deploy (Postgres)
-- **Tables**: `watches` (collection), `wear_log` (daily wear entries, unique date constraint), `wishlist`, `price_history` (tracks wishlist item prices over time, ON DELETE CASCADE)
+- **Tables**: `watches` (collection), `wear_log` (daily wear entries, multiple per day allowed), `wishlist`, `price_history` (tracks wishlist item prices over time, ON DELETE CASCADE)
 - **Image uploads**: Vercel Blob via `@vercel/blob` in production; local file storage in dev
 
 ### API Pattern

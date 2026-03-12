@@ -8,10 +8,11 @@ Built with Next.js 16, TypeScript, SQLite (local) / Vercel Postgres (production)
 
 ## Features
 
-- **Calendar view** — See which watch you wore on any given day
-- **Day detail** — Tap a day to see the full entry with wrist shot
-- **Log a wear** — Record today's watch with optional photo and notes
+- **Calendar view** — See which watches you wore on any given day (multiple per day supported)
+- **Day detail** — Tap a day to see all entries with wrist shots
+- **Log a wear** — Record today's watch(es) with optional photo and notes
 - **Collection management** — Track your watches with purchase date, price, and sale history
+- **CSV import** — Bulk-import watches from CSV with smart column matching and alias support
 - **Wishlist & price monitoring** — Track watches you want, log prices from different sources, mark as purchased
 - **Stats dashboard** — Most-worn watches, streak tracking, collection overview
 - **Image uploads** — Vercel Blob in production, local file storage in development
@@ -182,7 +183,7 @@ CREATE TABLE watches (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
--- One entry per day — which watch you wore
+-- Daily wear entries — multiple watches per day allowed
 CREATE TABLE wear_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER REFERENCES users(id),
@@ -191,8 +192,7 @@ CREATE TABLE wear_log (
   image_url TEXT,
   notes TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (watch_id) REFERENCES watches(id),
-  UNIQUE(user_id, date)              -- one watch per user per day
+  FOREIGN KEY (watch_id) REFERENCES watches(id)
 );
 
 -- Watches you want
@@ -249,6 +249,7 @@ CREATE TABLE feedback (
 | `GET` | `/api/watches/[id]` | Get single watch with wear count |
 | `PATCH` | `/api/watches/[id]` | Update a watch |
 | `DELETE` | `/api/watches/[id]` | Delete a watch |
+| `POST` | `/api/watches/import` | Import watches from CSV file |
 | `GET` | `/api/collection` | List watches split by owned/sold with stats |
 | `GET` | `/api/wear-log` | Get wear log (`?date=YYYY-MM-DD` or `?month=YYYY-MM`) |
 | `POST` | `/api/wear-log` | Log a wear entry |

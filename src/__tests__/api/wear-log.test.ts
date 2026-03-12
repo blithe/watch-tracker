@@ -26,7 +26,7 @@ describe('/api/wear-log', () => {
   });
 
   describe('GET /api/wear-log', () => {
-    it('should return log for a specific date', async () => {
+    it('should return logs for a specific date', async () => {
       const { watch1Id } = seedTestData();
 
       const req = makeReq('http://localhost/api/wear-log?date=2026-02-08');
@@ -34,15 +34,17 @@ describe('/api/wear-log', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toMatchObject({
+      expect(Array.isArray(data)).toBe(true);
+      expect(data).toHaveLength(1);
+      expect(data[0]).toMatchObject({
         date: '2026-02-08',
         watch_id: watch1Id,
       });
-      expect(data).toHaveProperty('brand');
-      expect(data).toHaveProperty('model');
+      expect(data[0]).toHaveProperty('brand');
+      expect(data[0]).toHaveProperty('model');
     });
 
-    it('should return null for a date with no log', async () => {
+    it('should return empty array for a date with no log', async () => {
       seedTestData();
 
       const req = makeReq('http://localhost/api/wear-log?date=2000-01-01');
@@ -50,7 +52,7 @@ describe('/api/wear-log', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toBeNull();
+      expect(data).toEqual([]);
     });
 
     it('should return logs for a given month', async () => {
@@ -203,11 +205,11 @@ describe('/api/wear-log', () => {
       expect(inserted?.notes).toBeNull();
     });
 
-    it('should return 400 for duplicate date', async () => {
-      const { watch1Id } = seedTestData();
+    it('should allow multiple watches on the same date', async () => {
+      const { watch1Id, watch2Id } = seedTestData();
 
       const requestBody = {
-        watch_id: watch1Id,
+        watch_id: watch2Id,
         date: '2026-02-08' // This date already exists from seedTestData
       };
 
@@ -217,10 +219,12 @@ describe('/api/wear-log', () => {
       });
 
       const response = await POST(request);
-      const data = await response.json();
+      expect(response.status).toBe(200);
 
-      expect(response.status).toBe(400);
-      expect(data).toEqual({ error: 'Already logged a watch for this date' });
+      // Verify both entries exist
+      const db = getTestDb();
+      const logs = db.prepare('SELECT * FROM wear_log WHERE date = ?').all('2026-02-08');
+      expect(logs).toHaveLength(2);
     });
 
     it('should return 404 for a watch_id that does not belong to the user', async () => {
@@ -244,26 +248,20 @@ describe('/api/wear-log', () => {
       expect(response.status).toBe(400);
     });
 
-    it('should enforce unique date constraint', async () => {
-      const { watch1Id, watch2Id } = seedTestData();
-
-      // Try to log a different watch on the same date
-      const requestBody = {
-        watch_id: watch2Id,
-        date: '2026-02-08' // Same date as existing entry
-      };
+    it('should allow logging the same watch on the same date twice', async () => {
+      const { watch1Id } = seedTestData();
 
       const request = makeReq('http://localhost/api/wear-log', {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ watch_id: watch1Id, date: '2026-02-08' })
       });
 
       const response = await POST(request);
+      expect(response.status).toBe(200);
 
-      expect(response.status).toBe(400);
-      expect(response).toMatchObject({
-        status: 400
-      });
+      const db = getTestDb();
+      const logs = db.prepare('SELECT * FROM wear_log WHERE date = ?').all('2026-02-08');
+      expect(logs).toHaveLength(2);
     });
   });
 });

@@ -72,8 +72,7 @@ export function getTestDb() {
         image_url TEXT,
         notes TEXT,
         created_at TEXT DEFAULT (datetime('now')),
-        FOREIGN KEY (watch_id) REFERENCES watches(id),
-        UNIQUE(user_id, date)
+        FOREIGN KEY (watch_id) REFERENCES watches(id)
       );
 
       CREATE TABLE IF NOT EXISTS wishlist (

@@ -44,7 +44,7 @@ describe('Integration: Edge Cases', () => {
     expect(wearLogs).toHaveLength(0);
   });
 
-  it('should fail to log two wears on the same date (UNIQUE constraint)', async () => {
+  it('should allow logging two watches on the same date', async () => {
     const db = getTestDb();
 
     const watch1 = await (await createWatch(makeReq('http://localhost/api/watches', { method: 'POST', body: JSON.stringify({ brand: 'First', model: 'Watch' }) }))).json();
@@ -56,18 +56,14 @@ describe('Integration: Edge Cases', () => {
     }));
     expect(firstWearResponse.status).toBe(200);
 
-    const duplicateWearResponse = await logWear(makeReq('http://localhost/api/wear-log', {
+    const secondWearResponse = await logWear(makeReq('http://localhost/api/wear-log', {
       method: 'POST',
-      body: JSON.stringify({ watch_id: watch2.id, date: '2026-03-02', notes: 'This should fail' })
+      body: JSON.stringify({ watch_id: watch2.id, date: '2026-03-02', notes: 'Second wear today' })
     }));
-    expect(duplicateWearResponse.status).toBe(400);
-
-    const duplicateErrorData = await duplicateWearResponse.json();
-    expect(duplicateErrorData).toEqual({ error: 'Already logged a watch for this date' });
+    expect(secondWearResponse.status).toBe(200);
 
     const wearLogs = db.prepare('SELECT * FROM wear_log WHERE date = ?').all('2026-03-02');
-    expect(wearLogs).toHaveLength(1);
-    expect(wearLogs[0]).toMatchObject({ watch_id: watch1.id, notes: 'First wear today' });
+    expect(wearLogs).toHaveLength(2);
   });
 
   it('should clean up price_history when wishlist item is deleted', async () => {
@@ -261,7 +257,7 @@ describe('Integration: Edge Cases', () => {
     expect(invalidDateLog.date).toBe('not-a-date');
   });
 
-  it('should maintain data integrity under concurrent-like operations', async () => {
+  it('should allow concurrent-like logging of multiple watches on same date', async () => {
     const db = getTestDb();
 
     const watches = [];
@@ -283,12 +279,9 @@ describe('Integration: Edge Cases', () => {
     const results = await Promise.allSettled(operations);
 
     const successfulResults = results.filter(r => r.status === 'fulfilled' && (r as any).value.status === 200);
-    const failedResults = results.filter(r => r.status === 'fulfilled' && (r as any).value.status === 400);
-
-    expect(successfulResults).toHaveLength(1);
-    expect(failedResults.length).toBeGreaterThan(0);
+    expect(successfulResults).toHaveLength(3);
 
     const wearLogsForDate = db.prepare('SELECT * FROM wear_log WHERE date = ?').all('2026-03-10');
-    expect(wearLogsForDate).toHaveLength(1);
+    expect(wearLogsForDate).toHaveLength(3);
   });
 });

@@ -8,9 +8,10 @@ interface CalendarCellProps {
   cellImage: string | null;
   hasLog: boolean;
   logBrand?: string | null;
+  logCount?: number;
 }
 
-export default function CalendarCell({ day, dateStr, isToday, cellImage, hasLog, logBrand }: CalendarCellProps) {
+export default function CalendarCell({ day, dateStr, isToday, cellImage, hasLog, logBrand, logCount = 0 }: CalendarCellProps) {
   return (
     <Link
       href={`/day/${dateStr}`}
@@ -30,6 +31,11 @@ export default function CalendarCell({ day, dateStr, isToday, cellImage, hasLog,
           : isToday ? 'text-blue-400' : 'text-zinc-400'}`}>
         {day}
       </span>
+      {logCount > 1 && (
+        <span className="absolute top-1 right-1 z-10 bg-blue-600 text-white text-[10px] font-bold leading-none w-4 h-4 flex items-center justify-center rounded-full">
+          {logCount}
+        </span>
+      )}
       {hasLog && !cellImage && logBrand && (
         <span className="absolute bottom-1 inset-x-0 text-center text-[9px] text-zinc-500 leading-tight px-1 truncate">
           {logBrand}

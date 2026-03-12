@@ -13,13 +13,13 @@ export async function GET(req: NextRequest) {
   const month = searchParams.get('month');
 
   if (date) {
-    const log = await db.prepare(`
+    const logs = await db.prepare(`
       SELECT wl.*, w.brand, w.model, w.reference, w.image_url as watch_image
       FROM wear_log wl
       JOIN watches w ON w.id = wl.watch_id
       WHERE wl.date = ? AND wl.user_id = ?
-    `).get(date, userId);
-    return NextResponse.json(log || null);
+    `).all(date, userId);
+    return NextResponse.json(logs);
   }
 
   if (month) {
@@ -59,23 +59,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Watch not found' }, { status: 404 });
   }
 
-  // Check if user already has a log for this date
-  const existing = await db.prepare(
-    'SELECT id FROM wear_log WHERE user_id = ? AND date = ?'
-  ).get(userId, date);
-  if (existing) {
-    return NextResponse.json({ error: 'Already logged a watch for this date' }, { status: 400 });
-  }
-
   try {
     await db.prepare(
       'INSERT INTO wear_log (user_id, watch_id, date, image_url, notes) VALUES (?, ?, ?, ?, ?)'
     ).run(userId, watch_id, date, image_url || null, notes || null);
     return NextResponse.json({ ok: true });
   } catch (e: any) {
-    if (e.message?.includes('UNIQUE constraint failed') || e.code === '23505') {
-      return NextResponse.json({ error: 'Already logged a watch for this date' }, { status: 400 });
-    }
     if (e.message?.includes('FOREIGN KEY') || e.code === '23503') {
       return NextResponse.json({ error: 'Watch not found' }, { status: 400 });
     }
