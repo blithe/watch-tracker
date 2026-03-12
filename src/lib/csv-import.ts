@@ -174,15 +174,19 @@ export interface ParsedRow {
 
 /**
  * Map a raw CSV row (with original headers) to a typed WatchRow.
+ * If `mapping` is provided, uses it to resolve headers; otherwise auto-detects via mapHeader.
  * Returns an error string if required fields are missing or values are invalid.
  */
-export function mapRow(raw: Record<string, string>): ParsedRow {
+export function mapRow(raw: Record<string, string>, mapping?: Record<string, WatchColumn | null>): ParsedRow {
   const data: WatchRow = {};
   const fieldErrors: string[] = [];
+  const resolveCol = mapping
+    ? (h: string): WatchColumn | null => mapping[h] ?? null
+    : (h: string): WatchColumn | null => mapHeader(h);
 
   for (const [header, rawValue] of Object.entries(raw)) {
-    const col = mapHeader(header);
-    if (!col) continue; // unknown columns are filtered here
+    const col = resolveCol(header);
+    if (!col) continue;
 
     const v = rawValue.trim();
 

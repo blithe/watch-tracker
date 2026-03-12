@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getSessionUserIdFromRequest } from '@/lib/auth';
-import { parseCSV, mapHeader, mapRow, WATCH_COLUMNS } from '@/lib/csv-import';
+import { parseCSV, mapHeader, mapRow, WATCH_COLUMNS, WatchColumn } from '@/lib/csv-import';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,8 +44,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Too many rows (max ${MAX_ROWS})` }, { status: 400 });
   }
 
+  // Parse optional column mapping override from client preview step
+  const mappingStr = formData.get('mapping');
+  let customMapping: Record<string, WatchColumn | null> | undefined;
+  if (mappingStr && typeof mappingStr === 'string') {
+    try {
+      const parsed = JSON.parse(mappingStr);
+      // Validate: values must be valid WatchColumn or null
+      const allowed = new Set<string>(WATCH_COLUMNS);
+      customMapping = {};
+      for (const [key, val] of Object.entries(parsed)) {
+        if (val === null || (typeof val === 'string' && allowed.has(val))) {
+          customMapping[key] = val as WatchColumn | null;
+        }
+      }
+    } catch {
+      return NextResponse.json({ error: 'Invalid mapping' }, { status: 400 });
+    }
+  }
+
   // Identify which headers are recognized and which are not
-  const unknownColumns = headers.filter(h => mapHeader(h) === null);
+  const resolveHeader = customMapping
+    ? (h: string) => customMapping![h] ?? null
+    : (h: string) => mapHeader(h);
+  const unknownColumns = headers.filter(h => resolveHeader(h) === null);
 
   let imported = 0;
   let skipped = 0;
@@ -53,7 +75,7 @@ export async function POST(req: NextRequest) {
 
   for (let i = 0; i < rows.length; i++) {
     const rowNum = i + 2; // 1-based, accounting for header row
-    const { data, error } = mapRow(rows[i]);
+    const { data, error } = mapRow(rows[i], customMapping);
 
     if (error) {
       errors.push({ row: rowNum, message: error });

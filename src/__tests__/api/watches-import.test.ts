@@ -10,10 +10,11 @@ jest.mock('../../lib/db', () => {
   return require('../../lib/test-db').getTestDb();
 });
 
-function makeCSVRequest(csv: string, extraHeaders: Record<string, string> = {}) {
+function makeCSVRequest(csv: string, extraHeaders: Record<string, string> = {}, mapping?: Record<string, string | null>) {
   const blob = new Blob([csv], { type: 'text/csv' });
   const formData = new FormData();
   formData.append('file', blob, 'watches.csv');
+  if (mapping) formData.append('mapping', JSON.stringify(mapping));
 
   return new NextRequest('http://localhost/api/watches/import', {
     method: 'POST',
@@ -175,5 +176,38 @@ describe('POST /api/watches/import', () => {
   it('returns 400 for empty CSV', async () => {
     const res = await POST(makeCSVRequest(''));
     expect(res.status).toBe(400);
+  });
+
+  it('uses custom mapping override instead of auto-detection', async () => {
+    // "name" normally auto-maps to model, but user reassigns "name" to notes via preview
+    const csv = 'brand,name,model\nRolex,My daily driver,GMT Master';
+    const mapping = { brand: 'brand', name: 'notes', model: 'model' };
+    const res = await POST(makeCSVRequest(csv, {}, mapping));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.imported).toBe(1);
+
+    const db = getTestDb();
+    const w = db.prepare('SELECT * FROM watches WHERE user_id = 1').get() as any;
+    expect(w.brand).toBe('Rolex');
+    expect(w.model).toBe('GMT Master');
+    expect(w.notes).toBe('My daily driver');
+  });
+
+  it('custom mapping can reassign columns', async () => {
+    // Map "name" to notes instead of model, "ref" to model
+    const csv = 'brand,name,ref\nOmega,My favorite watch,Speedmaster';
+    const mapping = { brand: 'brand', name: 'notes', ref: 'model' };
+    const res = await POST(makeCSVRequest(csv, {}, mapping));
+    const body = await res.json();
+
+    expect(body.imported).toBe(1);
+
+    const db = getTestDb();
+    const w = db.prepare('SELECT * FROM watches WHERE user_id = 1').get() as any;
+    expect(w.brand).toBe('Omega');
+    expect(w.model).toBe('Speedmaster');
+    expect(w.notes).toBe('My favorite watch');
   });
 });

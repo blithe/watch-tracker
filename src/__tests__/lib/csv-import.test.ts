@@ -231,4 +231,27 @@ describe('mapRow', () => {
     const { data } = mapRow({ brand: 'Rolex', model: 'Sub' });
     expect(data.status).toBe('owned');
   });
+
+  it('uses custom mapping when provided', () => {
+    const mapping = { make: 'brand', full_name: 'model', color: null };
+    const { data, error } = mapRow(
+      { make: 'Rolex', full_name: 'GMT Master', color: 'black' },
+      mapping as any
+    );
+    expect(error).toBeNull();
+    expect(data.brand).toBe('Rolex');
+    expect(data.model).toBe('GMT Master');
+    expect((data as any).color).toBeUndefined();
+  });
+
+  it('custom mapping with null skips columns', () => {
+    const mapping = { brand: 'brand', name: null, ref: 'model' };
+    const { data, error } = mapRow(
+      { brand: 'Omega', name: 'Omega Speedmaster', ref: 'Speedmaster' },
+      mapping as any
+    );
+    expect(error).toBeNull();
+    expect(data.brand).toBe('Omega');
+    expect(data.model).toBe('Speedmaster');
+  });
 });
