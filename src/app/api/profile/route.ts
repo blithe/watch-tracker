@@ -17,7 +17,9 @@ export async function GET(req: NextRequest) {
     const user = await db.prepare('SELECT email FROM users WHERE id = ?').get(userId) as any;
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const emailPrefix = user.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+    let emailPrefix = user.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+    // Ensure username is at least 3 chars
+    if (emailPrefix.length < 3) emailPrefix = emailPrefix + '_user';
     // Ensure unique username by appending id if needed
     let username = emailPrefix;
     const existing = await db.prepare('SELECT user_id FROM user_profiles WHERE username = ?').get(username);

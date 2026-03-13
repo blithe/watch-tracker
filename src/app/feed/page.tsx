@@ -30,11 +30,14 @@ export default function FeedPage() {
   }
 
   useEffect(() => {
-    loadFeed().then(data => {
-      setItems(data.items);
-      setNextCursor(data.nextCursor);
-      setLoading(false);
-    });
+    // Ensure profile exists (auto-creates on first GET) before loading feed
+    fetch('/api/profile')
+      .then(() => loadFeed())
+      .then(data => {
+        setItems(data.items);
+        setNextCursor(data.nextCursor);
+        setLoading(false);
+      });
   }, []);
 
   async function handleLoadMore() {

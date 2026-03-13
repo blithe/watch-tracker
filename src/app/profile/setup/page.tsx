@@ -16,8 +16,9 @@ export default function ProfileSetup() {
       .then(data => {
         setDisplayName(data.display_name || '');
         setUsername(data.username || '');
-        setLoading(false);
-      });
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
