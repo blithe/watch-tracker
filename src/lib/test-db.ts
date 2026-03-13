@@ -107,6 +107,39 @@ export function getTestDb() {
         message TEXT NOT NULL,
         created_at TEXT DEFAULT (datetime('now'))
       );
+
+      CREATE TABLE IF NOT EXISTS user_profiles (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id),
+        display_name TEXT NOT NULL,
+        username TEXT UNIQUE NOT NULL,
+        bio TEXT,
+        is_discoverable INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS follows (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        follower_id INTEGER NOT NULL REFERENCES users(id),
+        following_id INTEGER NOT NULL REFERENCES users(id),
+        status TEXT DEFAULT 'pending',
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(follower_id, following_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS blocks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        blocker_id INTEGER NOT NULL REFERENCES users(id),
+        blocked_id INTEGER NOT NULL REFERENCES users(id),
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(blocker_id, blocked_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
+      CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
+      CREATE INDEX IF NOT EXISTS idx_blocks_blocker ON blocks(blocker_id);
+      CREATE INDEX IF NOT EXISTS idx_blocks_blocked ON blocks(blocked_id);
+      CREATE INDEX IF NOT EXISTS idx_user_profiles_username ON user_profiles(username);
     `);
 
     // Seed the test user so auth works in tests
@@ -117,20 +150,44 @@ export function getTestDb() {
   return testDb;
 }
 
+export const TEST_USER2_ID = 2;
+export const TEST_USER2_EMAIL = 'test2@example.com';
+
 export function resetTestDb() {
   if (testDb) {
     // Clear all data (order matters due to foreign keys)
+    testDb.exec('DELETE FROM blocks');
+    testDb.exec('DELETE FROM follows');
+    testDb.exec('DELETE FROM user_profiles');
     testDb.exec('DELETE FROM feedback');
     testDb.exec('DELETE FROM price_history');
     testDb.exec('DELETE FROM wear_log');
     testDb.exec('DELETE FROM wishlist');
     testDb.exec('DELETE FROM watches');
+    testDb.exec('DELETE FROM users');
     testDb.exec('DELETE FROM sqlite_sequence'); // Reset auto-increment
     // Re-seed test user
     testDb.prepare(
       `INSERT OR IGNORE INTO users (id, email, password_hash, is_admin) VALUES (?, ?, ?, ?)`
     ).run(TEST_USER_ID, TEST_USER_EMAIL, 'test-hash-not-for-login', 1);
   }
+}
+
+/** Create a second test user and return auth headers for them */
+export function createTestUser2(): { headers: Record<string, string> } {
+  const db = getTestDb();
+  db.prepare(
+    `INSERT OR IGNORE INTO users (id, email, password_hash, is_admin) VALUES (?, ?, ?, ?)`
+  ).run(TEST_USER2_ID, TEST_USER2_EMAIL, 'test-hash-not-for-login', 0);
+
+  const secret = process.env.SESSION_SECRET || 'dev-secret-change-in-production';
+  const payload = Buffer.from(`${TEST_USER2_ID}:${Date.now()}`).toString('base64url');
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  const token = `${payload}.${sig}`;
+
+  return {
+    headers: { 'Cookie': `${COOKIE_NAME}=${token}` },
+  };
 }
 
 export function closeTestDb() {

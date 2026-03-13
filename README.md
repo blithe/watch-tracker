@@ -1,6 +1,6 @@
 # ⌚ Watch Tracker
 
-A personal watch collection and wear-tracking app. Log which watch you're wearing each day, manage your collection with purchase/sale tracking, maintain a wishlist with price monitoring, and view stats about your rotation.
+A personal watch collection and wear-tracking app. Log which watch you're wearing each day, manage your collection with purchase/sale tracking, maintain a wishlist with price monitoring, view stats about your rotation, and share wrist shots with other collectors via a social feed.
 
 Built with Next.js 16, TypeScript, SQLite (local) / Vercel Postgres (production), and Tailwind CSS.
 
@@ -18,6 +18,10 @@ Built with Next.js 16, TypeScript, SQLite (local) / Vercel Postgres (production)
 - **Image uploads** — Vercel Blob in production, local file storage in development
 - **Multi-user auth** — Email/password login, registration, password reset via email
 - **Feedback** — Public submission form; admin-only feedback review
+- **Social feed** — Follow other collectors, see their wrist shots, manage follow requests
+- **User profiles** — Discoverable profiles with display name, username, and bio
+- **Follow system** — Send/accept/reject follow requests, block users (bidirectional)
+- **User search** — Find discoverable collectors by username or display name
 - **Data isolation** — Each user sees only their own watches, wear logs, and wishlist
 - **Dark mode** — Tailwind dark theme throughout
 
@@ -79,8 +83,8 @@ npm test
 
 Tests use an isolated SQLite database — they won't touch your production data. The suite covers:
 
-- **API routes** — watches, wear log, wishlist, price history, uploads, auth
-- **Database** — schema validation, foreign keys, constraints
+- **API routes** — watches, wear log, wishlist, price history, uploads, auth, social (profile, follow, block, feed, search)
+- **Database** — schema validation, foreign keys, constraints (including social tables)
 - **Auth** — token generation, verification, middleware
 - **Date handling** — local time formatting (no UTC drift)
 - **Page rendering** — date parameter parsing
@@ -115,6 +119,11 @@ watch-tracker/
 │   │   │   ├── page.tsx                  # Wishlist overview
 │   │   │   ├── add/page.tsx              # Add to wishlist
 │   │   │   └── [id]/page.tsx             # Price history detail
+│   │   ├── feed/page.tsx                 # Social wrist shot feed
+│   │   ├── profile/setup/page.tsx        # First-time profile setup
+│   │   ├── settings/profile/page.tsx     # Edit profile
+│   │   ├── settings/followers/page.tsx   # Manage followers, requests, blocks
+│   │   ├── user/[username]/page.tsx      # Public user profile
 │   │   └── api/
 │   │       ├── auth/login/route.ts       # Email/password login
 │   │       ├── auth/logout/route.ts      # Clear session cookie
@@ -128,7 +137,17 @@ watch-tracker/
 │   │       ├── upload/route.ts           # Image upload (Vercel Blob)
 │   │       ├── collection/route.ts       # Collection endpoints
 │   │       ├── db-init/route.ts          # First-deploy schema init (Postgres)
-│   │       └── wishlist/                 # Wishlist + price history endpoints
+│   │       ├── wishlist/                 # Wishlist + price history endpoints
+│   │       ├── profile/route.ts          # Own profile (GET/PATCH, auto-creates)
+│   │       ├── profile/[username]/       # Public profile lookup
+│   │       ├── follow/route.ts           # Send/cancel follow request
+│   │       ├── follow-requests/route.ts  # List/accept/reject pending requests
+│   │       ├── followers/route.ts        # List/remove accepted followers
+│   │       ├── following/route.ts        # List users you follow
+│   │       ├── block/route.ts            # Block/unblock users
+│   │       ├── blocks/route.ts           # List blocked users
+│   │       ├── feed/route.ts             # Paginated wrist shot feed
+│   │       └── search/users/route.ts     # Search discoverable users
 │   ├── lib/
 │   │   ├── auth.ts                       # HMAC session tokens + cookie helpers
 │   │   ├── db.ts                         # Dual-mode DB (SQLite local / Postgres prod)
@@ -230,6 +249,36 @@ CREATE TABLE feedback (
   message TEXT NOT NULL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Social profiles (separate from auth users)
+CREATE TABLE user_profiles (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id),
+  display_name TEXT NOT NULL,
+  username TEXT UNIQUE NOT NULL,
+  bio TEXT,
+  is_discoverable INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Follow relationships with approval
+CREATE TABLE follows (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  follower_id INTEGER NOT NULL REFERENCES users(id),
+  following_id INTEGER NOT NULL REFERENCES users(id),
+  status TEXT DEFAULT 'pending',  -- 'pending' or 'accepted'
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(follower_id, following_id)
+);
+
+-- Block relationships (bidirectional visibility)
+CREATE TABLE blocks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  blocker_id INTEGER NOT NULL REFERENCES users(id),
+  blocked_id INTEGER NOT NULL REFERENCES users(id),
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(blocker_id, blocked_id)
+);
 ```
 
 ## API Routes
@@ -263,6 +312,21 @@ CREATE TABLE feedback (
 | `DELETE` | `/api/wishlist` | Remove a wishlist item |
 | `GET` | `/api/wishlist/[id]/prices` | Get price history |
 | `POST` | `/api/wishlist/[id]/prices` | Add a price entry |
+| `GET` | `/api/profile` | Get own profile (auto-creates on first call) |
+| `PATCH` | `/api/profile` | Update display name, username, bio, discoverable |
+| `GET` | `/api/profile/[username]` | Get public profile (404 if blocked/not discoverable) |
+| `POST` | `/api/follow` | Send follow request `{ userId }` |
+| `DELETE` | `/api/follow` | Unfollow / cancel pending request `{ userId }` |
+| `GET` | `/api/follow-requests` | List pending follow requests to you |
+| `PATCH` | `/api/follow-requests` | Accept or reject `{ userId, action }` |
+| `GET` | `/api/followers` | List accepted followers |
+| `DELETE` | `/api/followers` | Remove a follower `{ userId }` |
+| `GET` | `/api/following` | List users you follow (accepted) |
+| `POST` | `/api/block` | Block user `{ userId }`, removes all follows |
+| `DELETE` | `/api/block` | Unblock user `{ userId }` |
+| `GET` | `/api/blocks` | List blocked users |
+| `GET` | `/api/feed` | Paginated wrist shot feed (`?cursor=&limit=20`) |
+| `GET` | `/api/search/users` | Search discoverable users (`?q=term`) |
 | `GET` | `/api/db-init` | Initialize Postgres schema on first deploy |
 
 ## Deployment (Vercel)
@@ -281,7 +345,8 @@ CREATE TABLE feedback (
 - [x] **Phase 1** — Core app: calendar, logging, stats, image uploads
 - [x] **Phase 2** — Wishlist & price monitoring
 - [x] **Phase 3** — Multi-user auth, registration, password reset, feedback
-- [ ] **Phase 4** — Instagram integration
+- [x] **Phase 4** — Social feed: profiles, follow/block, wrist shot feed, user search
+- [ ] **Phase 5** — Instagram integration
 
 ## License
 

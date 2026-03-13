@@ -26,7 +26,7 @@ Personal watch tracker built with Next.js 16 (App Router), TypeScript, and Tailw
   - Use `CURRENT_TIMESTAMP` (not `NOW()` or `datetime('now')`) for cross-DB compatibility
 - **Local schema**: Auto-created on import of `db.ts` (SQLite)
 - **Production schema**: `/api/db-init` route creates tables on first deploy (Postgres)
-- **Tables**: `watches` (collection), `wear_log` (daily wear entries, multiple per day allowed), `wishlist`, `price_history` (tracks wishlist item prices over time, ON DELETE CASCADE)
+- **Tables**: `watches` (collection), `wear_log` (daily wear entries, multiple per day allowed), `wishlist`, `price_history` (tracks wishlist item prices over time, ON DELETE CASCADE), `user_profiles` (social identity), `follows` (follow relationships with pending/accepted status), `blocks` (bidirectional block relationships)
 - **Image uploads**: Vercel Blob via `@vercel/blob` in production; local file storage in dev
 
 ### API Pattern
@@ -49,6 +49,11 @@ REST endpoints in `src/app/api/`. All routes export `dynamic = 'force-dynamic'` 
 - `/stats` — Statistics dashboard
 - `/collection` — Watch collection management (purchase/sale tracking)
 - `/wishlist` — Wishlist with price history tracking
+- `/feed` — Social wrist shot feed (own + followed users, images only, cursor paginated)
+- `/profile/setup` — First-time profile setup
+- `/settings/profile` — Edit profile (display name, username, bio, discoverable toggle)
+- `/settings/followers` — Manage followers, follow requests, blocked users
+- `/user/[username]` — Public user profile with wrist shots grid
 
 ### Testing
 
