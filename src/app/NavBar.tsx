@@ -15,7 +15,7 @@ const LINKS = [
   { href: '/wishlist', label: 'Wishlist' },
   { href: '/stats', label: 'Stats' },
   { href: '/log', label: '+ Log' },
-  { href: '/settings/followers', label: 'Profile' },
+  { href: '/settings/profile', label: 'Profile' },
   { href: '/feedback', label: 'Feedback' },
 ];
 
