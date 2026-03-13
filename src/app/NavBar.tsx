@@ -15,6 +15,7 @@ const LINKS = [
   { href: '/wishlist', label: 'Wishlist' },
   { href: '/stats', label: 'Stats' },
   { href: '/log', label: '+ Log' },
+  { href: '/settings/followers', label: 'Profile' },
   { href: '/feedback', label: 'Feedback' },
 ];
 
@@ -40,7 +41,7 @@ export default function NavBar({ isAdmin, pendingRequestCount = 0 }: NavBarProps
             <a key={href} href={href}
               className={`text-sm hover:text-zinc-200 relative ${label === 'Admin' ? 'text-amber-400 hover:text-amber-200' : 'text-zinc-400'}`}>
               {label}
-              {label === 'Feed' && pendingRequestCount > 0 && (
+              {label === 'Profile' && pendingRequestCount > 0 && (
                 <span className="absolute -top-2 -right-3 bg-blue-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                   {pendingRequestCount > 9 ? '9+' : pendingRequestCount}
                 </span>
@@ -69,7 +70,7 @@ export default function NavBar({ isAdmin, pendingRequestCount = 0 }: NavBarProps
             <a key={href} href={href}
               className={`py-2.5 text-sm border-b border-zinc-900 ${label === 'Admin' ? 'text-amber-400' : 'text-zinc-300 hover:text-white'}`}>
               {label}
-              {label === 'Feed' && pendingRequestCount > 0 && (
+              {label === 'Profile' && pendingRequestCount > 0 && (
                 <span className="ml-2 bg-blue-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">
                   {pendingRequestCount > 9 ? '9+' : pendingRequestCount}
                 </span>
