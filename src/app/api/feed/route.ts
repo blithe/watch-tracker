@@ -16,9 +16,12 @@ export async function GET(req: NextRequest) {
     let query = `
       SELECT wl.id, wl.date, wl.image_url, wl.notes, wl.created_at,
              w.brand, w.model, w.reference,
-             up.display_name, up.username, wl.user_id
+             up.display_name, up.username,
+             u.email,
+             wl.user_id
       FROM wear_log wl
       JOIN watches w ON w.id = wl.watch_id
+      JOIN users u ON u.id = wl.user_id
       LEFT JOIN user_profiles up ON up.user_id = wl.user_id
       WHERE wl.image_url IS NOT NULL
         AND (

@@ -11,9 +11,14 @@ interface FeedItem {
   brand: string;
   model: string;
   reference: string | null;
-  display_name: string;
-  username: string;
+  display_name: string | null;
+  username: string | null;
+  email: string;
   user_id: number;
+}
+
+function getHandle(item: FeedItem): string {
+  return item.username || item.email.split('@')[0];
 }
 
 export default function FeedPage() {
@@ -78,14 +83,13 @@ export default function FeedPage() {
               className="w-full aspect-square object-cover"
             />
             <div className="p-4">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="mb-2">
                 <a
-                  href={`/user/${item.username}`}
-                  className="text-sm font-medium text-zinc-200 hover:text-white"
+                  href={item.username ? `/user/${item.username}` : '#'}
+                  className="text-sm font-medium text-zinc-400 hover:text-white"
                 >
-                  {item.display_name}
+                  @{getHandle(item)}
                 </a>
-                <span className="text-xs text-zinc-500">@{item.username}</span>
               </div>
               <p className="text-zinc-300 text-sm">
                 {item.brand} {item.model}

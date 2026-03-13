@@ -131,7 +131,7 @@ describe('GET /api/feed', () => {
     expect(data.nextCursor).toBeNull();
   });
 
-  it('should include display_name and username in results', async () => {
+  it('should include username and email in results', async () => {
     setupFeedData();
 
     const response = await GET(makeReq('http://localhost/api/feed'));
@@ -140,6 +140,7 @@ describe('GET /api/feed', () => {
     expect(data.items[0]).toMatchObject({
       display_name: 'User One',
       username: 'userone',
+      email: 'test@example.com',
     });
   });
 });
