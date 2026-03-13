@@ -4,6 +4,22 @@ import { getSessionUserIdFromRequest } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
+export async function DELETE(req: NextRequest) {
+  const userId = getSessionUserIdFromRequest(req);
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { confirm } = await req.json();
+  if (confirm !== 'DELETE_ALL') {
+    return NextResponse.json({ error: 'Confirmation required' }, { status: 400 });
+  }
+
+  // Delete wear logs first (foreign key on watch_id), then watches
+  await db.prepare('DELETE FROM wear_log WHERE user_id = ?').run(userId);
+  await db.prepare('DELETE FROM watches WHERE user_id = ?').run(userId);
+
+  return NextResponse.json({ ok: true });
+}
+
 export async function GET(req: NextRequest) {
   const userId = getSessionUserIdFromRequest(req);
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -80,6 +80,17 @@ export default function CollectionPage() {
     fetchCollection();
   }
 
+  async function handleDeleteAll() {
+    if (!confirm('Delete entire collection? This will remove all watches and wear logs. This cannot be undone.')) return;
+
+    await fetch('/api/collection', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'DELETE_ALL' }),
+    });
+    fetchCollection();
+  }
+
   const WatchCard = ({ watch, isSold = false }: { watch: CollectionWatch; isSold?: boolean }) => (
     <div className={`bg-zinc-800/50 border border-zinc-700 rounded-xl p-6 transition-all hover:bg-zinc-800/70 ${isSold ? 'opacity-75' : ''}`}>
       {watch.image_url && (
@@ -204,6 +215,14 @@ export default function CollectionPage() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">My Collection</h1>
         <div className="flex gap-2">
+          {data && data.stats.totalWatches > 0 && (
+            <button
+              onClick={handleDeleteAll}
+              className="bg-red-600 hover:bg-red-500 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              Delete All
+            </button>
+          )}
           <ImportCSV onImported={fetchCollection} />
           <Link
             href="/collection/add"
@@ -273,6 +292,7 @@ export default function CollectionPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
