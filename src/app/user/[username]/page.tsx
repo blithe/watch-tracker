@@ -291,33 +291,34 @@ export default function UserProfilePage() {
             return (
               <div
                 key={day}
-                className={`aspect-square flex flex-col items-center justify-center rounded text-xs relative overflow-hidden
-                  ${isToday ? 'ring-2 ring-blue-500' : ''}
-                  ${dayLogs.length > 0 ? 'bg-zinc-800' : 'bg-zinc-900/50'}
+                className={`relative self-start h-0 pb-[100%] rounded-lg border overflow-hidden
+                  ${isToday ? 'border-blue-500' : 'border-zinc-800'}
                 `}
               >
-                {cellImage ? (
+                {cellImage && (
                   <button
                     onClick={() => setLightboxSrc(cellImage)}
                     className="absolute inset-0 w-full h-full cursor-zoom-in"
                   >
                     <img src={cellImage} alt="" className="w-full h-full object-cover" />
-                    <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-[10px] text-zinc-300 px-1 truncate">
-                      {firstLog?.brand}
-                    </span>
-                    {dayLogs.length > 1 && (
-                      <span className="absolute top-0.5 right-1 text-[9px] text-zinc-300 bg-black/50 rounded px-0.5">
-                        +{dayLogs.length - 1}
-                      </span>
-                    )}
                   </button>
-                ) : dayLogs.length > 0 ? (
-                  <div className="text-center">
-                    <span className="text-zinc-400">{day}</span>
-                    <span className="block text-[9px] text-zinc-500 truncate px-1">{firstLog?.brand}</span>
-                  </div>
-                ) : (
-                  <span className="text-zinc-600">{day}</span>
+                )}
+                {!cellImage && (
+                  <div className={`absolute inset-0 ${dayLogs.length > 0 ? 'bg-zinc-800/50' : ''} ${isToday ? 'bg-blue-500/10' : ''}`} />
+                )}
+                <span className={`absolute top-1 left-1 text-xs font-semibold z-10 leading-none px-1 py-0.5 rounded-md
+                  ${cellImage ? 'bg-black/65 text-white' : isToday ? 'text-blue-400' : 'text-zinc-400'}`}>
+                  {day}
+                </span>
+                {dayLogs.length > 1 && (
+                  <span className="absolute top-1 right-1 z-10 bg-blue-600 text-white text-[10px] font-bold leading-none w-4 h-4 flex items-center justify-center rounded-full">
+                    {dayLogs.length}
+                  </span>
+                )}
+                {dayLogs.length > 0 && !cellImage && firstLog?.brand && (
+                  <span className="absolute bottom-1 inset-x-0 text-center text-[9px] text-zinc-500 leading-tight px-1 truncate">
+                    {firstLog.brand}
+                  </span>
                 )}
               </div>
             );
