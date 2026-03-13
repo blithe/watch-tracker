@@ -157,12 +157,12 @@ function createPostgresDb(): DB {
         async run(...params: any[]) {
           let q = pgQuery;
           if (/^\s*INSERT\s/i.test(q) && !/RETURNING/i.test(q)) {
-            q += ' RETURNING id';
+            q += ' RETURNING *';
           }
           const result = await sql.query(q, params);
           return {
             changes: result.rowCount ?? 0,
-            lastInsertRowid: result.rows[0]?.id ?? null,
+            lastInsertRowid: result.rows[0]?.id ?? result.rows[0]?.user_id ?? null,
           };
         },
       };
