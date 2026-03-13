@@ -6,20 +6,22 @@ import { useRouter } from 'next/navigation';
 interface NavBarProps {
   isAdmin: boolean;
   pendingRequestCount?: number;
+  profileUsername?: string | null;
 }
 
-const LINKS = [
-  { href: '/feed', label: 'Feed' },
-  { href: '/', label: 'Calendar' },
-  { href: '/collection', label: 'Collection' },
-  { href: '/wishlist', label: 'Wishlist' },
-  { href: '/stats', label: 'Stats' },
-  { href: '/log', label: '+ Log' },
-  { href: '/settings/profile', label: 'Profile' },
-  { href: '/feedback', label: 'Feedback' },
-];
+export default function NavBar({ isAdmin, pendingRequestCount = 0, profileUsername }: NavBarProps) {
+  const profileHref = profileUsername ? `/user/${profileUsername}` : '/settings/profile';
 
-export default function NavBar({ isAdmin, pendingRequestCount = 0 }: NavBarProps) {
+  const LINKS = [
+    { href: '/feed', label: 'Feed' },
+    { href: '/', label: 'Calendar' },
+    { href: '/collection', label: 'Collection' },
+    { href: '/wishlist', label: 'Wishlist' },
+    { href: '/stats', label: 'Stats' },
+    { href: '/log', label: '+ Log' },
+    { href: profileHref, label: 'Profile' },
+    { href: '/feedback', label: 'Feedback' },
+  ];
   const [open, setOpen] = useState(false);
   const router = useRouter();
 

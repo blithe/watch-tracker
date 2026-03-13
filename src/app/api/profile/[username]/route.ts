@@ -40,6 +40,14 @@ export async function GET(
     'SELECT status FROM follows WHERE follower_id = ? AND following_id = ?'
   ).get(userId, profile.user_id) as any;
 
+  // Get follower/following counts
+  const followerCount = await db.prepare(
+    `SELECT COUNT(*) as cnt FROM follows WHERE following_id = ? AND status = 'accepted'`
+  ).get(profile.user_id) as any;
+  const followingCount = await db.prepare(
+    `SELECT COUNT(*) as cnt FROM follows WHERE follower_id = ? AND status = 'accepted'`
+  ).get(profile.user_id) as any;
+
   return NextResponse.json({
     user_id: profile.user_id,
     display_name: profile.display_name,
@@ -47,5 +55,7 @@ export async function GET(
     bio: profile.bio,
     is_own_profile: profile.user_id === userId,
     follow_status: followStatus?.status || null,
+    follower_count: Number(followerCount?.cnt || 0),
+    following_count: Number(followingCount?.cnt || 0),
   });
 }
