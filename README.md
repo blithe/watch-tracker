@@ -315,6 +315,7 @@ CREATE TABLE blocks (
 | `GET` | `/api/profile` | Get own profile (auto-creates on first call) |
 | `PATCH` | `/api/profile` | Update display name, username, bio, discoverable |
 | `GET` | `/api/profile/[username]` | Get public profile (404 if blocked/not discoverable) |
+| `GET` | `/api/profile/[username]/calendar` | Get user's wear calendar for a month (`?month=YYYY-MM`) |
 | `POST` | `/api/follow` | Send follow request `{ userId }` |
 | `DELETE` | `/api/follow` | Unfollow / cancel pending request `{ userId }` |
 | `GET` | `/api/follow-requests` | List pending follow requests to you |

@@ -21,6 +21,47 @@ function getHandle(item: FeedItem): string {
   return item.username || item.email.split('@')[0];
 }
 
+function Lightbox({ src, alt, children }: { src: string; alt: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [open]);
+
+  return (
+    <>
+      <button onClick={() => setOpen(true)} className="w-full focus:outline-none cursor-zoom-in">
+        {children}
+      </button>
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setOpen(false)}
+        >
+          <img
+            src={src}
+            alt={alt}
+            className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setOpen(false)}
+            className="absolute top-4 right-4 text-white/70 hover:text-white text-2xl font-light leading-none"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function FeedPage() {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [nextCursor, setNextCursor] = useState<number | null>(null);
@@ -77,11 +118,13 @@ export default function FeedPage() {
       <div className="space-y-6">
         {items.map(item => (
           <div key={item.id} className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-            <img
-              src={item.image_url}
-              alt={`${item.brand} ${item.model}`}
-              className="w-full aspect-square object-cover"
-            />
+            <Lightbox src={item.image_url} alt={`${item.brand} ${item.model}`}>
+              <img
+                src={item.image_url}
+                alt={`${item.brand} ${item.model}`}
+                className="w-full aspect-square object-cover"
+              />
+            </Lightbox>
             <div className="p-4">
               <div className="mb-2">
                 <a
@@ -93,7 +136,9 @@ export default function FeedPage() {
               </div>
               <p className="text-zinc-300 text-sm">
                 {item.brand} {item.model}
-                {item.reference && <span className="text-zinc-500"> {item.reference}</span>}
+                {item.reference && item.reference !== item.model && (
+                  <span className="text-zinc-500"> {item.reference}</span>
+                )}
               </p>
               {item.notes && (
                 <p className="text-zinc-400 text-sm mt-1">{item.notes}</p>
