@@ -15,28 +15,14 @@ export async function GET(req: NextRequest) {
   try {
     let query = `
       SELECT wl.id, wl.date, wl.image_url, wl.notes, wl.created_at,
-             w.brand, w.model, w.reference,
-             up.display_name, up.username,
-             u.email,
-             wl.user_id
+             w.brand, w.model, w.reference
       FROM wear_log wl
       JOIN watches w ON w.id = wl.watch_id
-      JOIN users u ON u.id = wl.user_id
-      LEFT JOIN user_profiles up ON up.user_id = wl.user_id
       WHERE wl.image_url IS NOT NULL
-        AND (
-          wl.user_id = ?
-          OR wl.user_id IN (
-            SELECT following_id FROM follows WHERE follower_id = ? AND status = 'accepted'
-          )
-        )
-        AND wl.user_id NOT IN (
-          SELECT blocked_id FROM blocks WHERE blocker_id = ?
-          UNION SELECT blocker_id FROM blocks WHERE blocked_id = ?
-        )
+        AND wl.user_id = ?
     `;
 
-    const params: any[] = [userId, userId, userId, userId];
+    const params: any[] = [userId];
 
     if (cursor) {
       query += ` AND wl.id < ?`;

@@ -11,14 +11,6 @@ interface FeedItem {
   brand: string;
   model: string;
   reference: string | null;
-  display_name: string | null;
-  username: string | null;
-  email: string;
-  user_id: number;
-}
-
-function getHandle(item: FeedItem): string {
-  return item.username || item.email.split('@')[0];
 }
 
 function Lightbox({ src, alt, children }: { src: string; alt: string; children: React.ReactNode }) {
@@ -76,14 +68,11 @@ export default function FeedPage() {
   }
 
   useEffect(() => {
-    // Ensure profile exists (auto-creates on first GET) before loading feed
-    fetch('/api/profile')
-      .then(() => loadFeed())
-      .then(data => {
-        setItems(data.items);
-        setNextCursor(data.nextCursor);
-        setLoading(false);
-      });
+    loadFeed().then(data => {
+      setItems(data.items);
+      setNextCursor(data.nextCursor);
+      setLoading(false);
+    });
   }, []);
 
   async function handleLoadMore() {
@@ -102,11 +91,8 @@ export default function FeedPage() {
       <div className="text-center py-12">
         <p className="text-zinc-400 mb-4">No wrist shots yet.</p>
         <p className="text-zinc-500 text-sm">
-          Follow other collectors or <a href="/log" className="text-blue-400 hover:text-blue-300">log a wear</a> with a photo to see it here.
+          <a href="/log" className="text-blue-400 hover:text-blue-300">Log a wear</a> with a photo to see it here.
         </p>
-        <a href="/profile/setup" className="inline-block mt-4 text-sm text-blue-400 hover:text-blue-300">
-          Set up your profile
-        </a>
       </div>
     );
   }
@@ -126,14 +112,6 @@ export default function FeedPage() {
               />
             </Lightbox>
             <div className="p-4">
-              <div className="mb-2">
-                <a
-                  href={item.username ? `/user/${item.username}` : '#'}
-                  className="text-sm font-medium text-zinc-400 hover:text-white"
-                >
-                  @{getHandle(item)}
-                </a>
-              </div>
               <p className="text-zinc-300 text-sm">
                 {item.brand} {item.model}
                 {item.reference && item.reference !== item.model && (
