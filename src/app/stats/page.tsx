@@ -8,7 +8,7 @@ export default async function StatsPage() {
   const userId = await getSessionUserId();
   if (!userId) redirect('/login');
 
-  const totalDaysRow = await db.prepare('SELECT COUNT(*) as c FROM wear_log WHERE user_id = ?').get(userId) as { c: number };
+  const totalDaysRow = await db.prepare('SELECT COUNT(DISTINCT date) as c FROM wear_log WHERE user_id = ?').get(userId) as { c: number };
   const totalDays = totalDaysRow.c;
 
   const wearCounts = await db.prepare(`
@@ -30,7 +30,7 @@ export default async function StatsPage() {
     LIMIT 3
   `).all(userId, userId) as Array<{ brand: string; model: string; reference: string | null; last_worn: string | null }>;
 
-  const allDates = await db.prepare('SELECT date FROM wear_log WHERE user_id = ? ORDER BY date DESC').all(userId) as Array<{ date: string }>;
+  const allDates = await db.prepare('SELECT DISTINCT date FROM wear_log WHERE user_id = ? ORDER BY date DESC').all(userId) as Array<{ date: string }>;
   let streak = 0;
   if (allDates.length > 0) {
     let expected = new Date(allDates[0].date + 'T12:00:00');
