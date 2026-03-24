@@ -90,38 +90,6 @@ function createSqliteDb(): DB {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE IF NOT EXISTS user_profiles (
-      user_id INTEGER PRIMARY KEY REFERENCES users(id),
-      display_name TEXT NOT NULL,
-      username TEXT UNIQUE NOT NULL,
-      bio TEXT,
-      is_discoverable INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS follows (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      follower_id INTEGER NOT NULL REFERENCES users(id),
-      following_id INTEGER NOT NULL REFERENCES users(id),
-      status TEXT DEFAULT 'pending',
-      created_at TEXT DEFAULT (datetime('now')),
-      UNIQUE(follower_id, following_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS blocks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      blocker_id INTEGER NOT NULL REFERENCES users(id),
-      blocked_id INTEGER NOT NULL REFERENCES users(id),
-      created_at TEXT DEFAULT (datetime('now')),
-      UNIQUE(blocker_id, blocked_id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
-    CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
-    CREATE INDEX IF NOT EXISTS idx_blocks_blocker ON blocks(blocker_id);
-    CREATE INDEX IF NOT EXISTS idx_blocks_blocked ON blocks(blocked_id);
-    CREATE INDEX IF NOT EXISTS idx_user_profiles_username ON user_profiles(username);
   `);
 
   // Migrate existing databases: add columns added after initial schema
@@ -261,27 +229,3 @@ export interface Feedback {
   created_at: string;
 }
 
-export interface UserProfile {
-  user_id: number;
-  display_name: string;
-  username: string;
-  bio: string | null;
-  is_discoverable: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Follow {
-  id: number;
-  follower_id: number;
-  following_id: number;
-  status: 'pending' | 'accepted';
-  created_at: string;
-}
-
-export interface Block {
-  id: number;
-  blocker_id: number;
-  blocked_id: number;
-  created_at: string;
-}

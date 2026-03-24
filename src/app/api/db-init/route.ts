@@ -96,46 +96,6 @@ export async function GET() {
     await sql`ALTER TABLE wear_log DROP CONSTRAINT IF EXISTS wear_log_date_key`;
     await sql`ALTER TABLE wear_log DROP CONSTRAINT IF EXISTS wear_log_user_date_key`;
 
-    // Social feed tables
-    await sql`
-      CREATE TABLE IF NOT EXISTS user_profiles (
-        user_id INTEGER PRIMARY KEY REFERENCES users(id),
-        display_name TEXT NOT NULL,
-        username TEXT UNIQUE NOT NULL,
-        bio TEXT,
-        is_discoverable INTEGER DEFAULT 0,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `;
-
-    await sql`
-      CREATE TABLE IF NOT EXISTS follows (
-        id SERIAL PRIMARY KEY,
-        follower_id INTEGER NOT NULL REFERENCES users(id),
-        following_id INTEGER NOT NULL REFERENCES users(id),
-        status TEXT DEFAULT 'pending',
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(follower_id, following_id)
-      )
-    `;
-
-    await sql`
-      CREATE TABLE IF NOT EXISTS blocks (
-        id SERIAL PRIMARY KEY,
-        blocker_id INTEGER NOT NULL REFERENCES users(id),
-        blocked_id INTEGER NOT NULL REFERENCES users(id),
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(blocker_id, blocked_id)
-      )
-    `;
-
-    await sql`CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_blocks_blocker ON blocks(blocker_id)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_blocks_blocked ON blocks(blocked_id)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_user_profiles_username ON user_profiles(username)`;
-
     return NextResponse.json({ ok: true, message: 'All tables created/migrated' });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
